@@ -137,7 +137,7 @@ class HabitatSimDepthSensor(DepthSensor, HabitatSimSensor):
     max_depth_value: float
 
     def __init__(self, config: Config) -> None:
-        if config.NORMALIZE_DEPTH:
+        if config.NORMALIZE_DEPTH:  # True
             self.min_depth_value = 0
             self.max_depth_value = 1
         else:
@@ -291,7 +291,7 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
     ) -> habitat_sim.Configuration:
         sim_config = habitat_sim.SimulatorConfiguration()
         # Check if Habitat-Sim is post Scene Config Update
-        if not hasattr(sim_config, "scene_id"):
+        if not hasattr(sim_config, "scene_id"):  # False
             raise RuntimeError(
                 "Incompatible version of Habitat-Sim detected, please upgrade habitat_sim"
             )
@@ -346,7 +346,7 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
             sim_sensor_cfg.uuid = sensor.uuid
             sim_sensor_cfg.resolution = list(
                 sensor.observation_space.shape[:2]
-            )
+            )  # (256, 256)
 
             # TODO(maksymets): Add configure method to Sensor API to avoid
             # accessing child attributes through parent interface
@@ -354,13 +354,13 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
             sim_sensor_cfg.sensor_type = sensor.sim_sensor_type
             sim_sensor_cfg.gpu2gpu_transfer = (
                 self.habitat_config.HABITAT_SIM_V0.GPU_GPU
-            )
+            )  # False
             sensor_specifications.append(sim_sensor_cfg)
 
         agent_config.sensor_specifications = sensor_specifications
         agent_config.action_space = registry.get_action_space_configuration(
             self.habitat_config.ACTION_SPACE_CONFIG
-        )(self.habitat_config).get()
+        )(self.habitat_config).get()  # 机器人有stop, forward(0.25), right(10), left(10) 4个动作,其中每次forward走0.25
 
         return habitat_sim.Configuration(sim_config, [agent_config])
 
@@ -409,8 +409,8 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
         Returns:
             rendered frame according to the mode
         """
-        sim_obs = self.get_sensor_observations()
-        observations = self._sensor_suite.get_observations(sim_obs)
+        sim_obs = self.get_sensor_observations()  
+        observations = self._sensor_suite.get_observations(sim_obs)  # {'robot_head_rgb': (256,256,3), 'robot_head_depth': (256,256,1)}
 
         output = observations.get(mode)
         assert output is not None, "mode {} sensor is not active".format(mode)
@@ -540,8 +540,8 @@ class HabitatSim(habitat_sim.Simulator, Simulator):
 
     def _get_agent_config(self, agent_id: Optional[int] = None) -> Any:
         if agent_id is None:
-            agent_id = self.habitat_config.DEFAULT_AGENT_ID
-        agent_name = self.habitat_config.AGENTS[agent_id]
+            agent_id = self.habitat_config.DEFAULT_AGENT_ID  # 0
+        agent_name = self.habitat_config.AGENTS[agent_id]  # 'AGENT_0'
         agent_config = getattr(self.habitat_config, agent_name)
         return agent_config
 

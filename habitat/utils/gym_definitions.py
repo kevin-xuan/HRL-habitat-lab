@@ -44,7 +44,7 @@ def make_gym_from_config(config: Config) -> HabRenderWrapper:
     """
     if "TASK_CONFIG" in config:
         config = config.TASK_CONFIG
-    env_class_name = _get_env_name(config)
+    env_class_name = _get_env_name(config)  # RLTaskENV
     env_class = get_env_class(env_class_name)
     assert (
         env_class is not None

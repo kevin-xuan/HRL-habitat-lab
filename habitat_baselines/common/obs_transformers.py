@@ -1200,15 +1200,15 @@ class Equirect2CubeMap(ProjectionTransformer):
 
 def get_active_obs_transforms(config: Config) -> List[ObservationTransformer]:
     active_obs_transforms = []
-    if hasattr(config.RL.POLICY, "OBS_TRANSFORMS"):
+    if hasattr(config.RL.POLICY, "OBS_TRANSFORMS"):  # 默认设置里有
         obs_transform_names = (
             config.RL.POLICY.OBS_TRANSFORMS.ENABLED_TRANSFORMS
-        )
-        for obs_transform_name in obs_transform_names:
+        )  # tuple() 但其实是空的,即不进入下面的for循环,说明不对obs做任何操作
+        for obs_transform_name in obs_transform_names:  # ['ResizeShortestEdge', 'CenterCropper', 'CubeMap2Equirect', 'CubeMap2Fisheye', 'Equirect2CubeMap', 'AddVirtualKeys']
             obs_trans_cls = baseline_registry.get_obs_transformer(
                 obs_transform_name
-            )
-            obs_transform = obs_trans_cls.from_config(config)
+            )  # <class habitat_baselines.common.obs_transformers.'>
+            obs_transform = obs_trans_cls.from_config(config)  # 每个obs_transform_name都重载了from_config
             active_obs_transforms.append(obs_transform)
     return active_obs_transforms
 
@@ -1225,7 +1225,7 @@ def apply_obs_transforms_batch(
 def apply_obs_transforms_obs_space(
     obs_space: spaces.Dict, obs_transforms: Iterable[ObservationTransformer]
 ) -> spaces.Dict:
-    for obs_transform in obs_transforms:
+    for obs_transform in obs_transforms:  # [], 不对obs做任何操作
         obs_space = obs_transform.transform_observation_space(obs_space)
     return obs_space
 
@@ -1234,7 +1234,7 @@ def apply_obs_transforms_obs_space(
 class AddVirtualKeys(ObservationTransformer):
     def __init__(self, virtual_keys):
         super().__init__()
-        self._virtual_keys = virtual_keys
+        self._virtual_keys = virtual_keys  # {nav_to_skill: 8, object_to_agent_gps_compass: 2}
 
     def transform_observation_space(
         self, observation_space: spaces.Dict, **kwargs
@@ -1254,7 +1254,7 @@ class AddVirtualKeys(ObservationTransformer):
     ) -> Dict[str, torch.Tensor]:
         first_obs = next(iter(observations.values()))
         device = first_obs.device
-        batch_dim = first_obs.shape[0]
+        batch_dim = first_obs.shape[0]  # 1
         for k, obs_dim in self._virtual_keys.items():
             observations[k] = torch.zeros((batch_dim, obs_dim), device=device)
         return observations

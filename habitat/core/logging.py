@@ -20,7 +20,7 @@ class HabitatLogger(logging.Logger):
         style="%",
     ):
         super().__init__(name, level)
-        if filename is not None:
+        if filename is not None:  # False
             handler = logging.FileHandler(filename, filemode)  # type:ignore
         else:
             handler = logging.StreamHandler(stream)  # type:ignore

@@ -6,10 +6,11 @@
 
 import argparse
 import random
+from xml.etree.ElementPath import ops
 
 import numpy as np
 import torch
-
+from torch.utils.tensorboard import SummaryWriter
 from habitat.config import Config
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.config.default import get_config
@@ -20,17 +21,19 @@ def main():
     parser.add_argument(
         "--run-type",
         choices=["train", "eval"],
-        required=True,
+        # required=True,
+        default='train',
         help="run type of the experiment (train or eval)",
     )
     parser.add_argument(
         "--exp-config",
         type=str,
-        required=True,
+        # required=True,
+        default='habitat_baselines/config/rearrange/ddppo_pick.yaml',
         help="path to config yaml containing info about experiment",
     )
     parser.add_argument(
-        "opts",
+        "opts",  # 当用sh脚本时opts不为空
         default=None,
         nargs=argparse.REMAINDER,
         help="Modify config options from command line",
@@ -49,10 +52,10 @@ def execute_exp(config: Config, run_type: str) -> None:
     random.seed(config.TASK_CONFIG.SEED)
     np.random.seed(config.TASK_CONFIG.SEED)
     torch.manual_seed(config.TASK_CONFIG.SEED)
-    if config.FORCE_TORCH_SINGLE_THREADED and torch.cuda.is_available():
+    if config.FORCE_TORCH_SINGLE_THREADED and torch.cuda.is_available():  # True
         torch.set_num_threads(1)
 
-    trainer_init = baseline_registry.get_trainer(config.TRAINER_NAME)
+    trainer_init = baseline_registry.get_trainer(config.TRAINER_NAME)  # ddppo
     assert trainer_init is not None, f"{config.TRAINER_NAME} is not supported"
     trainer = trainer_init(config)
 

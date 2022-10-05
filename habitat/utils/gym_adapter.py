@@ -110,19 +110,19 @@ def create_action_space(original_space: gym.Space) -> gym.Space:
 
 def continuous_vector_action_to_hab_dict(
     original_action_space: spaces.Space,
-    vector_action_space: spaces.Box,
-    action: np.ndarray,
+    vector_action_space: spaces.Box,  # None
+    action: np.ndarray, 
 ) -> Dict[str, Any]:
     """
     Converts a np.ndarray vector action into a habitat-lab compatible action dictionary.
     """
     # Assume that the action space only has one root SimulatorTaskAction
-    root_action_names = tuple(original_action_space.spaces.keys())
+    root_action_names = tuple(original_action_space.spaces.keys())  # ('ARM_ACTION', 'BASE_VELOCITY', 'REARRANGE_STOP')
     if len(root_action_names) == 1:
         # No need for a tuple if there is only one action
         root_action_names = root_action_names[0]
     action_name_to_lengths = {}
-    for outer_k, act_dict in original_action_space.spaces.items():
+    for outer_k, act_dict in original_action_space.spaces.items():  
         if isinstance(act_dict, EmptySpace):
             action_name_to_lengths[outer_k] = 1
         else:
@@ -133,14 +133,14 @@ def continuous_vector_action_to_hab_dict(
     # Determine action arguments for root_action_name
     action_args = {}
     action_offset = 0
-    for action_name, action_length in action_name_to_lengths.items():
+    for action_name, action_length in action_name_to_lengths.items():  # {'arm_action': 7, 'grip_action': 1, 'based_vel': 2, 'REARRANGE_STOP': 1}
         action_values = action[action_offset : action_offset + action_length]
         action_args[action_name] = action_values
         action_offset += action_length
 
     action_dict = {
-        "action": root_action_names,
-        "action_args": action_args,
+        "action": root_action_names,  # ('ARM_ACTION', 'BASE_VELOCITY', 'REARRANGE_STOP')
+        "action_args": action_args,  # {'arm_action': tensor(7, ), 'grip_action': (1, ), 'based_vel': (2, ), 'REARRANGE_STOP': (1, )}
     }
 
     return action_dict
@@ -185,7 +185,7 @@ class HabGymWrapper(gym.Env):
             self._gym_action_keys = list(env.action_space.spaces.keys())
 
         self._last_obs: Optional[Observations] = None
-        self._save_orig_obs = save_orig_obs
+        self._save_orig_obs = save_orig_obs  # False
         self.orig_obs = None
 
         # Filtering the action spaces keys

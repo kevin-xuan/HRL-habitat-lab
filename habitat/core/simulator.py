@@ -82,7 +82,7 @@ class Sensor(metaclass=abc.ABCMeta):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.config = kwargs["config"] if "config" in kwargs else None
-        if hasattr(self.config, "UUID"):
+        if hasattr(self.config, "UUID"):  # True
             # We allow any sensor config to override the UUID
             self.uuid = self.config.UUID
         else:

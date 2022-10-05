@@ -118,8 +118,8 @@ class Benchmark:
     def local_evaluate(
         self, agent: "Agent", num_episodes: Optional[int] = None
     ) -> Dict[str, float]:
-        if num_episodes is None:
-            num_episodes = len(self._env.episodes)
+        if num_episodes is None:  # True
+            num_episodes = len(self._env.episodes)  # 20
         else:
             assert num_episodes <= len(self._env.episodes), (
                 "num_episodes({}) is larger than number of episodes "
@@ -135,12 +135,12 @@ class Benchmark:
         count_episodes = 0
 
         pbar = tqdm(total=num_episodes)
-        while count_episodes < num_episodes:
+        while count_episodes < num_episodes:  # [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1]
             observations = self._env.reset()
             agent.reset()
 
             while not self._env.episode_over:
-                action = agent.act(observations)
+                action = agent.act(observations)  # PPOAgent
                 observations = self._env.step(action)
 
             metrics = self._env.get_metrics()

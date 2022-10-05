@@ -55,7 +55,7 @@ def is_slurm_batch_job() -> bool:
 def resume_state_filename(config: Config) -> str:
     fname = RESUME_STATE_BASE_NAME
 
-    if is_slurm_job() and config.RL.preemption.append_slurm_job_id:
+    if is_slurm_job() and config.RL.preemption.append_slurm_job_id:  # False
         fname += "-{}".format(SLURM_JOBID)
 
     return osp.join(config.CHECKPOINT_FOLDER, fname + ".pth")
@@ -105,7 +105,7 @@ def rank0_only(fn: Optional[Callable] = None) -> Union[Callable, bool]:
 
     @functools.wraps(fn)
     def _wrapper(*args, **kwargs):
-        if rank0_only():
+        if rank0_only(): 
             return fn(*args, **kwargs)
         return None
 

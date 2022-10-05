@@ -78,6 +78,20 @@ target/
 
 # exclude data from source control by default
 data
+close_cab_checkpoints
+close_cab_tb
+open_cab_checkpoints
+open_cab_tb
+pick_checkpoints
+pick_tb
+r3m_pick_checkpoints
+r3m_pick_tb
+tb
+tb_rearrange_easy
+video_dir
+video_dir_rearrange_easy
+
+
 
 # Mac OS-specific storage files
 .DS_Store

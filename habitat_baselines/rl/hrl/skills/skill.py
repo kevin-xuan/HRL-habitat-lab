@@ -21,10 +21,10 @@ class SkillPolicy(Policy):
         :param action_space: The overall action space of the entire task, not task specific.
         """
         self._config = config
-        self._batch_size = batch_size
+        self._batch_size = batch_size  # 1
 
         self._cur_skill_step = torch.zeros(self._batch_size)
-        self._should_keep_hold_state = should_keep_hold_state
+        self._should_keep_hold_state = should_keep_hold_state  # False 在waitskill和resetArm下为True
 
         self._cur_skill_args: List[Any] = [
             None for _ in range(self._batch_size)
@@ -40,7 +40,7 @@ class SkillPolicy(Policy):
                 self._grip_ac_idx += get_num_actions(space) - 1
                 found_grip = True
                 break
-        if not found_grip:
+        if not found_grip:  # False
             raise ValueError(f"Could not find grip action in {action_space}")
 
     def _internal_log(self, s, observations=None):
@@ -83,8 +83,8 @@ class SkillPolicy(Policy):
         """
         is_skill_done = self._is_skill_done(
             observations, rnn_hidden_states, prev_actions, masks
-        )
-        if is_skill_done.sum() > 0:
+        )  # 1表示skill完成,0则未完成
+        if is_skill_done.sum() > 0:  # False
             self._internal_log(
                 f"Requested skill termination {is_skill_done}",
                 observations,
@@ -94,13 +94,13 @@ class SkillPolicy(Policy):
             self._cur_skill_step.shape,
             device=self._cur_skill_step.device,
             dtype=torch.bool,
-        )
-        if self._config.MAX_SKILL_STEPS > 0:
+        )  # 1代表因此超时而导致skill结束
+        if self._config.MAX_SKILL_STEPS > 0:  # True
             over_max_len = self._cur_skill_step > self._config.MAX_SKILL_STEPS
-            if self._config.FORCE_END_ON_TIMEOUT:
+            if self._config.FORCE_END_ON_TIMEOUT:  # nav、wait、reserArm为False,其余为True
                 bad_terminate = over_max_len
             else:
-                is_skill_done = is_skill_done | over_max_len
+                is_skill_done = is_skill_done | over_max_len  # 超时则为1
 
         if bad_terminate.sum() > 0:
             self._internal_log(

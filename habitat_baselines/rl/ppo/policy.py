@@ -57,16 +57,16 @@ class Policy(abc.ABC):
         pass
 
 
-class NetPolicy(nn.Module, Policy):
+class NetPolicy(nn.Module, Policy):  # 初始化action和value head
     action_distribution: nn.Module
 
     def __init__(self, net, dim_actions, policy_config=None):
-        super().__init__()
-        self.net = net
+        super().__init__()  # pass
+        self.net = net  # net: PointNavResNetNet
         self.dim_actions = dim_actions
         self.action_distribution: Union[CategoricalNet, GaussianNet]
 
-        if policy_config is None:
+        if policy_config is None:  # False
             self.action_distribution_type = "categorical"
         else:
             self.action_distribution_type = (
@@ -79,9 +79,9 @@ class NetPolicy(nn.Module, Policy):
             )
         elif self.action_distribution_type == "gaussian":
             self.action_distribution = GaussianNet(
-                self.net.output_size,
-                self.dim_actions,
-                policy_config.ACTION_DIST,
+                self.net.output_size,  # 512
+                self.dim_actions,  # 11
+                policy_config.ACTION_DIST,  # Config({'use_softplus': False, 'log_std_init': 0.0, 'use_std_param': False, 'clamp_std': True, 'min_std': 1e-06, 'max_std': 1, 'min_log_std': -5, 'max_log_std': 2, 'action_activation': 'tanh', 'use_log_std': True})
             )
         else:
             ValueError(
@@ -89,7 +89,7 @@ class NetPolicy(nn.Module, Policy):
                 "not supported."
             )
 
-        self.critic = CriticHead(self.net.output_size)
+        self.critic = CriticHead(self.net.output_size)  # value net
 
     @property
     def should_load_agent_state(self):
@@ -110,21 +110,21 @@ class NetPolicy(nn.Module, Policy):
         masks,
         deterministic=False,
     ):
-        features, rnn_hidden_states = self.net(
+        features, rnn_hidden_states = self.net(  # action net
             observations, rnn_hidden_states, prev_actions, masks
-        )
-        distribution = self.action_distribution(features)
-        value = self.critic(features)
+        )  # (32, 512)  (32, 4, 512)
+        distribution = self.action_distribution(features)  # gaussian  mean:(32, 11) 为每个env输出action的高斯分布, action_dim=11
+        value = self.critic(features)  # (32, 1)
 
-        if deterministic:
+        if deterministic:  # False
             if self.action_distribution_type == "categorical":
                 action = distribution.mode()
             elif self.action_distribution_type == "gaussian":
                 action = distribution.mean
         else:
-            action = distribution.sample()
+            action = distribution.sample()  # (32, 11)
 
-        action_log_probs = distribution.log_probs(action)
+        action_log_probs = distribution.log_probs(action)  # (32, 1)
 
         return value, action, action_log_probs, rnn_hidden_states
 

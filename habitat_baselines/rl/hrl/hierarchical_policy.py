@@ -36,7 +36,7 @@ class HierarchicalPolicy(Policy):
         action_space: ActionSpace,
         num_envs: int,
     ):
-        super().__init__()
+        super().__init__()  # pass
 
         self._action_space = action_space
         self._num_envs: int = num_envs
@@ -47,13 +47,13 @@ class HierarchicalPolicy(Policy):
 
         for i, (skill_id, use_skill_name) in enumerate(
             config.USE_SKILLS.items()
-        ):
+        ):  # dict_items([('pick', 'NN_PICK'), ('place', 'NN_PLACE'), ('nav', 'NN_NAV'), ('nav_to_receptacle', 'NN_NAV'), ('wait', 'WAIT_SKILL'), ('reset_arm', 'RESET_ARM_SKILL')])
             if use_skill_name == "":
                 # Skip loading this skill if no name is provided
                 continue
             skill_config = config.DEFINED_SKILLS[use_skill_name]
 
-            cls = eval(skill_config.skill_name)
+            cls = eval(skill_config.skill_name)  # <class 'habitat_baselines.rl.hrl.skills.pick.PickSkillPolicy'>
             skill_policy = cls.from_config(
                 skill_config,
                 observation_space,
@@ -69,12 +69,12 @@ class HierarchicalPolicy(Policy):
         )
         self._cur_skills: torch.Tensor = torch.zeros(self._num_envs)
 
-        high_level_cls = eval(config.high_level_policy.name)
+        high_level_cls = eval(config.high_level_policy.name)  # 'GtHighLevelPolicy'
         self._high_level_policy: HighLevelPolicy = high_level_cls(
             config.high_level_policy,
             osp.join(
-                full_config.TASK_CONFIG.TASK.TASK_SPEC_BASE_PATH,
-                full_config.TASK_CONFIG.TASK.TASK_SPEC + ".yaml",
+                full_config.TASK_CONFIG.TASK.TASK_SPEC_BASE_PATH,  # configs/pddl/
+                full_config.TASK_CONFIG.TASK.TASK_SPEC + ".yaml",  # rearrange_easy
             ),
             num_envs,
             self._name_to_idx,
@@ -121,15 +121,15 @@ class HierarchicalPolicy(Policy):
         ]
         batched_rnn_hidden_states = rnn_hidden_states.unsqueeze(1)
         batched_prev_actions = prev_actions.unsqueeze(1)
-        batched_masks = masks.unsqueeze(1)
+        batched_masks = masks.unsqueeze(1)  # 表示episode是否结束 这里的mask是not done,意味着1代表未完成episode而0则完成
 
         batched_bad_should_terminate = torch.zeros(
             self._num_envs, device=use_device, dtype=torch.bool
-        )
+        )  # 表示是否因为超时而结束skill
 
         # Check if skills should terminate.
         for batch_idx, skill_idx in enumerate(self._cur_skills):
-            if masks[batch_idx] == 0.0:
+            if masks[batch_idx] == 0.0:  # episode未完成=0意味着已经完成一个skill
                 # Don't check if the skill is done if the episode ended.
                 continue
             should_terminate, bad_should_terminate = self._skills[
@@ -139,7 +139,7 @@ class HierarchicalPolicy(Policy):
                 batched_rnn_hidden_states[batch_idx],
                 batched_prev_actions[batch_idx],
                 batched_masks[batch_idx],
-            )
+            )  # 超时则should_terminate, bad_should_terminate都为1,需要结束当前skill
             batched_bad_should_terminate[batch_idx] = bad_should_terminate
             self._call_high_level[batch_idx] = should_terminate
 
@@ -168,7 +168,7 @@ class HierarchicalPolicy(Policy):
                 skill_idx = new_skills[new_skill_batch_idx.item()]
 
                 skill = self._skills[skill_idx.item()]
-
+                # 对于新的skill重置hidden_state和prev_action
                 (
                     batched_rnn_hidden_states[new_skill_batch_idx],
                     batched_prev_actions[new_skill_batch_idx],
@@ -181,9 +181,9 @@ class HierarchicalPolicy(Policy):
                 )
             self._cur_skills = (
                 (~self._call_high_level) * self._cur_skills
-            ) + (self._call_high_level * new_skills)
+            ) + (self._call_high_level * new_skills)  # 确定当前skill
 
-        # Compute the actions from the current skills
+        # Compute the actions from the current skills 前面的是为了确定是否更换skill
         actions = torch.zeros(
             self._num_envs, get_num_actions(self._action_space)
         )

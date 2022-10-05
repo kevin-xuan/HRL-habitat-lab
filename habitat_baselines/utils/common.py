@@ -100,19 +100,19 @@ class GaussianNet(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.action_activation = config.action_activation
-        self.use_softplus = config.use_softplus
-        self.use_std_param = config.use_std_param
-        self.clamp_std = config.clamp_std
-        self.min_std = config.min_log_std
-        self.max_std = config.max_log_std
-        std_init = config.log_std_init
+        self.action_activation = config.action_activation  # tanh
+        self.use_softplus = config.use_softplus  # False
+        self.use_std_param = config.use_std_param  # False
+        self.clamp_std = config.clamp_std  # True
+        self.min_std = config.min_log_std  # -5
+        self.max_std = config.max_log_std  # 2
+        std_init = config.log_std_init  # 0.0
 
         self.mu = nn.Linear(num_inputs, num_outputs)
         nn.init.orthogonal_(self.mu.weight, gain=0.01)
         nn.init.constant_(self.mu.bias, 0)
 
-        if self.use_std_param:
+        if self.use_std_param:  # False pick task 为True
             self.std = torch.nn.parameter.Parameter(
                 torch.randn(num_outputs) * 0.01 + std_init
             )
@@ -122,19 +122,19 @@ class GaussianNet(nn.Module):
             nn.init.constant_(self.std.bias, std_init)
 
     def forward(self, x: Tensor) -> CustomNormal:
-        mu = self.mu(x)
+        mu = self.mu(x)  # (32, 512) -> (32, 11) 11=action_num
         if self.action_activation == "tanh":
             mu = torch.tanh(mu)
 
         if self.use_std_param:
             std = self.std
         else:
-            std = self.std(x)
+            std = self.std(x)  # (32, 11)
 
-        if self.clamp_std:
-            std = torch.clamp(std, min=self.min_std, max=self.max_std)
-        std = torch.exp(std)
-        if self.use_softplus:
+        if self.clamp_std:  # True
+            std = torch.clamp(std, min=self.min_std, max=self.max_std)  # (-5, 2)
+        std = torch.exp(std)  # 从log x -> x
+        if self.use_softplus:  # False
             std = torch.nn.functional.softplus(std)
 
         return CustomNormal(mu, std)
@@ -180,7 +180,7 @@ class ObservationBatchingCache:
             sensor.type(),
             sensor.device.type,
             sensor.device.index,
-        )
+        )  # (32, 'robot_head_depth', (256, 256, 1), 'torch.FloatTensor', 'cpu', None)
         if key in self._pool:
             return self._pool[key]
 
@@ -191,7 +191,7 @@ class ObservationBatchingCache:
             device is not None
             and device.type == "cuda"
             and cache.device.type == "cpu"
-        ):
+        ):  # True
             cache = cache.pin_memory()
 
         if cache.device.type == "cpu":
@@ -245,7 +245,7 @@ def batch_obs(
             if cache is None:
                 batch[sensor_name].append(torch.as_tensor(sensor))
             else:
-                if sensor_name not in batch_t:
+                if sensor_name not in batch_t:  # 一开始在内存中分配所需的存储空间，后面不再申请
                     batch_t[sensor_name] = cache.get(  # type: ignore
                         len(observations),
                         sensor_name,
@@ -257,7 +257,7 @@ def batch_obs(
                 # np.asarray as this is quickier for the more common
                 # path of sensor being an np.ndarray
                 # np.asarray is ~3x slower than checking
-                if isinstance(sensor, np.ndarray):
+                if isinstance(sensor, np.ndarray):  # True
                     batch_t[sensor_name][i] = sensor  # type: ignore
                 elif torch.is_tensor(sensor):
                     batch_t[sensor_name][i].copy_(sensor, non_blocking=True)  # type: ignore
@@ -269,7 +269,7 @@ def batch_obs(
         # With the batching cache, we use pinned mem
         # so we can start the move to the GPU async
         # and continue stacking other things with it
-        if cache is not None:
+        if cache is not None:  # np转tensor,且放置在GPU上
             # If we were using a numpy array to do indexing and copying,
             # convert back to torch tensor
             # We know that batch_t[sensor_name] is either an np.ndarray
@@ -281,7 +281,7 @@ def batch_obs(
                 device, non_blocking=True
             )
 
-    if cache is None:
+    if cache is None:  # False
         for sensor in batch:
             batch_t[sensor] = torch.stack(batch[sensor], dim=0)
 
@@ -385,12 +385,12 @@ def generate_video(
     video_name = f"episode={episode_id}-ckpt={checkpoint_idx}-" + "-".join(
         metric_strs
     )
-    if "disk" in video_option:
+    if "disk" in video_option:  # ['disk']
         assert video_dir is not None
         images_to_video(
             images, video_dir, video_name, fps=fps, verbose=verbose
         )
-    if "tensorboard" in video_option:
+    if "tensorboard" in video_option:  # False
         tb_writer.add_video_from_np_images(
             f"episode{episode_id}", checkpoint_idx, images, fps=fps
         )
@@ -631,7 +631,7 @@ def action_to_velocity_control(
 
 
 def is_continuous_action_space(action_space) -> bool:
-    if isinstance(action_space, spaces.Box):
+    if isinstance(action_space, spaces.Box):  # True
         return True
     elif isinstance(action_space, (spaces.Discrete, spaces.MultiDiscrete)):
         return False
@@ -646,7 +646,7 @@ def get_num_actions(action_space) -> int:
     num_actions = 0
     while len(queue) != 0:
         v = queue.pop()
-        if isinstance(v, spaces.Dict):
+        if isinstance(v, spaces.Dict):  # False
             queue.extend(v.spaces.values())
         elif isinstance(v, spaces.Box):
             assert (

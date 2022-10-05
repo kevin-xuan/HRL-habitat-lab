@@ -22,9 +22,9 @@ def parse_func(x: str) -> Tuple[str, List[str]]:
     :returns: First element is the name of the function, second argument are the function arguments.
     """
     try:
-        name = x.split("(")[0]
+        name = x.split("(")[0]  # nav
         args = x.split("(")[1].split(")")[0]
-        args = args.split(",")
+        args = args.split(",")  # ['goal0|0', ' ROBOT_0']
         args = [x.strip() for x in args]
     except IndexError as e:
         raise ValueError(f"Cannot parse '{x}'") from e

@@ -34,8 +34,8 @@ def get_env_class(env_name: str) -> Type[habitat.RLEnv]:
 class RLTaskEnv(habitat.RLEnv):
     def __init__(self, config: Config, dataset: Optional[Dataset] = None):
         super().__init__(config, dataset)
-        self._reward_measure_name = self.config.TASK.REWARD_MEASURE
-        self._success_measure_name = self.config.TASK.SUCCESS_MEASURE
+        self._reward_measure_name = self.config.TASK.REWARD_MEASURE  # 'move_obj_reward'
+        self._success_measure_name = self.config.TASK.SUCCESS_MEASURE   # 'composite_success'
         assert (
             self._reward_measure_name is not None
         ), "The key TASK.REWARD_MEASURE cannot be None"
@@ -56,12 +56,12 @@ class RLTaskEnv(habitat.RLEnv):
 
     def get_reward(self, observations):
         current_measure = self._env.get_metrics()[self._reward_measure_name]
-        reward = self.config.TASK.SLACK_REWARD
+        reward = self.config.TASK.SLACK_REWARD  # -0.01
 
         reward += current_measure
 
         if self._episode_success():
-            reward += self.config.TASK.SUCCESS_REWARD
+            reward += self.config.TASK.SUCCESS_REWARD  # 100
 
         return reward
 

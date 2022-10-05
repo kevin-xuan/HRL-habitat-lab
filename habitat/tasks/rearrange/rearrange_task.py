@@ -46,7 +46,7 @@ class RearrangeTask(NavigationTask):
         return merge_sim_episode_with_object_config(sim_config, episode)
 
     def __init__(self, *args, sim, dataset=None, **kwargs) -> None:
-        self.n_objs = len(dataset.episodes[0].targets)
+        self.n_objs = len(dataset.episodes[0].targets)  # 1
 
         super().__init__(sim=sim, dataset=dataset, **kwargs)
         self.is_gripper_closed = False

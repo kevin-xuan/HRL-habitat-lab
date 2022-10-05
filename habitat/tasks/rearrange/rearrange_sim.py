@@ -45,7 +45,7 @@ class RearrangeSim(HabitatSim):
     ref_handle_to_rigid_obj_id: Optional[Dict[str, int]]
 
     def __init__(self, config: Config):
-        if len(config.AGENTS) > 1:
+        if len(config.AGENTS) > 1:  # False ['AGENT_0']
             config.defrost()
             all_new_sensor_names = []
             for agent in config.AGENTS:
@@ -68,9 +68,9 @@ class RearrangeSim(HabitatSim):
         self.prev_scene_id = None
 
         # Number of physics updates per action
-        self.ac_freq_ratio = self.habitat_config.AC_FREQ_RATIO
+        self.ac_freq_ratio = self.habitat_config.AC_FREQ_RATIO  # 4
         # The physics update time step.
-        self.ctrl_freq = self.habitat_config.CTRL_FREQ
+        self.ctrl_freq = self.habitat_config.CTRL_FREQ  # 120
         # Effective control speed is (ctrl_freq/ac_freq_ratio)
 
         self.art_objs: List[habitat_sim.physics.ManagedArticulatedObject] = []
@@ -180,7 +180,7 @@ class RearrangeSim(HabitatSim):
     def reconfigure(self, config: Config):
         self.step_idx = 0
         ep_info = config["ep_info"][0]
-        self.instance_handle_to_ref_handle = ep_info["info"]["object_labels"]
+        self.instance_handle_to_ref_handle = ep_info["info"]["object_labels"]  # {'025_mug_:0000': 'goal0|0'}
 
         config["SCENE"] = ep_info["scene_id"]
 
@@ -226,7 +226,7 @@ class RearrangeSim(HabitatSim):
         self.add_markers(ep_info)
 
         # auto-sleep rigid objects as optimization
-        if self.habitat_config.AUTO_SLEEP:
+        if self.habitat_config.AUTO_SLEEP:  # True
             self.sleep_all_objects()
 
         if new_scene:
@@ -246,7 +246,7 @@ class RearrangeSim(HabitatSim):
             ]
         )
 
-        if self.first_setup:
+        if self.first_setup:  # True
             self.first_setup = False
             self.robots_mgr.first_setup()
             # Capture the starting art states

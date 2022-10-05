@@ -45,11 +45,11 @@ class NnSkillPolicy(SkillPolicy):
         super().__init__(
             config, action_space, batch_size, should_keep_hold_state
         )
-        self._wrap_policy = wrap_policy
+        self._wrap_policy = wrap_policy  # PointNavResNetPolicy
         self._filtered_obs_space = filtered_obs_space
         self._filtered_action_space = filtered_action_space
         self._ac_start = 0
-        self._ac_len = get_num_actions(filtered_action_space)
+        self._ac_len = get_num_actions(filtered_action_space)  # arm: 8 or base: 2
 
         for k, space in action_space.items():
             if k not in filtered_action_space.spaces.keys():
@@ -119,7 +119,7 @@ class NnSkillPolicy(SkillPolicy):
         cls, config, observation_space, action_space, batch_size, full_config
     ):
         # Load the wrap policy from file
-        if len(config.LOAD_CKPT_FILE) == 0:
+        if len(config.LOAD_CKPT_FILE) == 0:  # False
             ckpt_dict = {}
             policy_cfg = get_config(config.FORCE_CONFIG_FILE)
         else:
@@ -135,14 +135,19 @@ class NnSkillPolicy(SkillPolicy):
             policy_cfg = ckpt_dict["config"]
         policy = baseline_registry.get_policy(config.name)
 
-        expected_obs_keys = policy_cfg.TASK_CONFIG.GYM.OBS_KEYS
+        if "order_keys" in config:
+            policy_cfg.defrost()
+            policy_cfg.RL.POLICY.order_keys = config.order_keys
+            policy_cfg.freeze()
+            
+        expected_obs_keys = policy_cfg.TASK_CONFIG.GYM.OBS_KEYS  # ['robot_head_depth', 'obj_start_sensor', 'joint', 'is_holding', 'relative_resting_position']
         filtered_obs_space = spaces.Dict(
             OrderedDict(
                 [(k, observation_space.spaces[k]) for k in expected_obs_keys]
             )
-        )
+        )  # 从10个obs过滤到只使用4 or 5个obs
 
-        for k in config.OBS_SKILL_INPUTS:
+        for k in config.OBS_SKILL_INPUTS:  # ['obj_start_sensor'] or ['object_to_agent_gps_compass']
             space = filtered_obs_space.spaces[k]
             # There is always a 3D position
             filtered_obs_space.spaces[k] = truncate_obs_space(space, 3)
@@ -157,12 +162,12 @@ class NnSkillPolicy(SkillPolicy):
                     for k in policy_cfg.TASK_CONFIG.TASK.POSSIBLE_ACTIONS
                 ]
             )
-        )
+        )  # 只有ARM_ACTIONS (pick place) or BASE_VELOCITY (nav)
 
         if "ARM_ACTION" in filtered_action_space.spaces and (
             policy_cfg.TASK_CONFIG.TASK.ACTIONS.ARM_ACTION.GRIP_CONTROLLER
             is None
-        ):
+        ):  # False
             filtered_action_space["ARM_ACTION"] = spaces.Dict(
                 {
                     k: v
@@ -178,7 +183,7 @@ class NnSkillPolicy(SkillPolicy):
         actor_critic = policy.from_config(
             policy_cfg, filtered_obs_space, filtered_action_space
         )
-        if len(ckpt_dict) > 0:
+        if len(ckpt_dict) > 0:  # 在这里加载预训练模型
             try:
                 actor_critic.load_state_dict(
                     {  # type: ignore

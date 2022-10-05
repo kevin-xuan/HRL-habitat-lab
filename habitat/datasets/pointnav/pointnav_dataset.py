@@ -42,8 +42,8 @@ class PointNavDatasetV1(Dataset):
         """
         dataset_dir = os.path.dirname(
             config.DATA_PATH.format(split=config.SPLIT)
-        )
-        if not cls.check_config_paths_exist(config):
+        )  # 'data/datasets/replica_cad/rearrange/v1/train'
+        if not cls.check_config_paths_exist(config):  # False
             raise FileNotFoundError(
                 f"Could not find dataset file `{dataset_dir}`"
             )
@@ -57,7 +57,7 @@ class PointNavDatasetV1(Dataset):
                 data_path=dataset_dir
             )
         )
-        if has_individual_scene_files:
+        if has_individual_scene_files:  # False
             return cls._get_scenes_from_folder(
                 content_scenes_path=dataset.content_scenes_path,
                 dataset_dir=dataset_dir,
@@ -92,18 +92,18 @@ class PointNavDatasetV1(Dataset):
         if config is None:
             return
 
-        datasetfile_path = config.DATA_PATH.format(split=config.SPLIT)
+        datasetfile_path = config.DATA_PATH.format(split=config.SPLIT)  # data/datasets/replica_cad/rearrange/v1/train/rearrange.json.gz
         with gzip.open(datasetfile_path, "rt") as f:
-            self.from_json(f.read(), scenes_dir=config.SCENES_DIR)
+            self.from_json(f.read(), scenes_dir=config.SCENES_DIR)  # SCENES_DIR='data/replica_cad/'
 
         # Read separate file for each scene
-        dataset_dir = os.path.dirname(datasetfile_path)
-        has_individual_scene_files = os.path.exists(
+        dataset_dir = os.path.dirname(datasetfile_path)  # data/datasets/replica_cad/rearrange/v1/train
+        has_individual_scene_files = os.path.exists(  # False
             self.content_scenes_path.split("{scene}")[0].format(
                 data_path=dataset_dir
             )
         )
-        if has_individual_scene_files:
+        if has_individual_scene_files:  # False
             scenes = config.CONTENT_SCENES
             if ALL_SCENES_MASK in scenes:
                 scenes = self._get_scenes_from_folder(
@@ -125,7 +125,7 @@ class PointNavDatasetV1(Dataset):
 
     def from_json(
         self, json_str: str, scenes_dir: Optional[str] = None
-    ) -> None:
+    ) -> None:  
         deserialized = json.loads(json_str)
         if CONTENT_SCENES_PATH_FIELD in deserialized:
             self.content_scenes_path = deserialized[CONTENT_SCENES_PATH_FIELD]
@@ -133,8 +133,8 @@ class PointNavDatasetV1(Dataset):
         for episode in deserialized["episodes"]:
             episode = NavigationEpisode(**episode)
 
-            if scenes_dir is not None:
-                if episode.scene_id.startswith(DEFAULT_SCENE_PATH_PREFIX):
+            if scenes_dir is not None:  # SCENES_DIR='data/replica_cad/'
+                if episode.scene_id.startswith(DEFAULT_SCENE_PATH_PREFIX):  # False
                     episode.scene_id = episode.scene_id[
                         len(DEFAULT_SCENE_PATH_PREFIX) :
                     ]

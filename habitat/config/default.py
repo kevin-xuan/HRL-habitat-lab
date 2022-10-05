@@ -939,7 +939,7 @@ def get_config(
     config = _C.clone()
     if config_paths:
         if isinstance(config_paths, str):
-            if CONFIG_FILE_SEPARATOR in config_paths:
+            if CONFIG_FILE_SEPARATOR in config_paths:  # False
                 config_paths = config_paths.split(CONFIG_FILE_SEPARATOR)
             else:
                 config_paths = [config_paths]
@@ -947,8 +947,8 @@ def get_config(
         for config_path in config_paths:
             config.merge_from_file(config_path)
 
-    if opts:
+    if opts:  # False
         config.merge_from_list(opts)
 
-    config.freeze()
+    config.freeze()  # 之后不可变
     return config

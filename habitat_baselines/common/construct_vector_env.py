@@ -21,12 +21,12 @@ def construct_envs(
     :return: VectorEnv object created according to specification.
     """
 
-    num_environments = config.NUM_ENVIRONMENTS
+    num_environments = config.NUM_ENVIRONMENTS  # 32
     configs = []
-    dataset = make_dataset(config.TASK_CONFIG.DATASET.TYPE)
-    scenes = config.TASK_CONFIG.DATASET.CONTENT_SCENES
+    dataset = make_dataset(config.TASK_CONFIG.DATASET.TYPE)  # 'RearrangeDataset-v0' 初始化dataset类,元素都是空
+    scenes = config.TASK_CONFIG.DATASET.CONTENT_SCENES  # ['*']
     if "*" in config.TASK_CONFIG.DATASET.CONTENT_SCENES:
-        scenes = dataset.get_scenes_to_load(config.TASK_CONFIG.DATASET)
+        scenes = dataset.get_scenes_to_load(config.TASK_CONFIG.DATASET)  # 按序加载scenes
 
     if num_environments < 1:
         raise RuntimeError("NUM_ENVIRONMENTS must be strictly positive")
@@ -36,10 +36,10 @@ def construct_envs(
             "No scenes to load, multiple process logic relies on being able to split scenes uniquely between processes"
         )
 
-    random.shuffle(scenes)
+    random.shuffle(scenes)  # 随机打乱scenes
 
     scene_splits: List[List[str]] = [[] for _ in range(num_environments)]
-    if len(scenes) < num_environments:
+    if len(scenes) < num_environments:  # False
         logger.warn(
             f"There are less scenes ({len(scenes)}) than environments ({num_environments}). "
             "Each environment will use all the scenes instead of using a subset."
@@ -48,30 +48,30 @@ def construct_envs(
             for split in scene_splits:
                 split.append(scene)
     else:
-        for idx, scene in enumerate(scenes):
+        for idx, scene in enumerate(scenes):  # 将scene均匀地分给每个environment
             scene_splits[idx % len(scene_splits)].append(scene)
         assert sum(map(len, scene_splits)) == len(scenes)
 
-    for i in range(num_environments):
+    for i in range(num_environments):  # 32  每个env基于分配到的scene设置task_config
         proc_config = config.clone()
         proc_config.defrost()
 
         task_config = proc_config.TASK_CONFIG
         task_config.SEED = task_config.SEED + i
-        if len(scenes) > 0:
+        if len(scenes) > 0:  # True
             task_config.DATASET.CONTENT_SCENES = scene_splits[i]
 
         task_config.SIMULATOR.HABITAT_SIM_V0.GPU_DEVICE_ID = (
             config.SIMULATOR_GPU_ID
         )
 
-        task_config.SIMULATOR.AGENT_0.SENSORS = config.SENSORS
+        task_config.SIMULATOR.AGENT_0.SENSORS = config.SENSORS  # ['HEAD_DEPTH_SENSOR']
 
         proc_config.freeze()
-        configs.append(proc_config)
+        configs.append(proc_config)  # list
 
     vector_env_cls: Type[Any]
-    if int(os.environ.get("HABITAT_ENV_DEBUG", 0)):
+    if int(os.environ.get("HABITAT_ENV_DEBUG", 0)):  # 0
         logger.warn(
             "Using the debug Vector environment interface. Expect slower performance."
         )
@@ -95,5 +95,6 @@ def construct_envs(
         make_env_fn=make_gym_from_config,
         env_fn_args=tuple((c,) for c in configs),
         workers_ignore_signals=workers_ignore_signals,
-    )
+    )  # 为每个env初始化环境
+    
     return envs

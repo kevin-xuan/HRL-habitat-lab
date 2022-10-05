@@ -36,12 +36,12 @@ class GtHighLevelPolicy:
                 f"The ground truth task planner only works when the task solution is hard-coded in the PDDL problem file at {task_spec_file}"
             )
         for i, sol_step in enumerate(task_spec["solution"]):
-            sol_action = parse_func(sol_step)
+            sol_action = parse_func(sol_step)  # 二元组,第一个为skill fcuntion,比如nav,第二个为skill的参数
             self._solution_actions.append(sol_action)
-            if i < (len(task_spec["solution"]) - 1):
-                self._solution_actions.append(parse_func("reset_arm(0)"))
+            if i < (len(task_spec["solution"]) - 1):  # 3
+                self._solution_actions.append(parse_func("reset_arm(0)"))  # 除最后一个skill之外,每个skill后添加重置robot arm skill
         # Add a wait action at the end.
-        self._solution_actions.append(parse_func("wait(30)"))
+        self._solution_actions.append(parse_func("wait(30)"))  # 在最后添加wait skill
 
         self._next_sol_idxs = torch.zeros(num_envs, dtype=torch.int32)
         self._num_envs = num_envs
@@ -58,7 +58,7 @@ class GtHighLevelPolicy:
         immediate_end = torch.zeros(
             self._num_envs, device=prev_actions.device, dtype=torch.bool
         )
-        for batch_idx, should_plan in enumerate(plan_masks):
+        for batch_idx, should_plan in enumerate(plan_masks):  # plan_masks指得是high_level_policy
             if should_plan == 1.0:
                 if self._next_sol_idxs[batch_idx] >= len(
                     self._solution_actions

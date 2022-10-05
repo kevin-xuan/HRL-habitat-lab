@@ -138,7 +138,7 @@ def images_to_video(
         **kwargs,
     )
     logger.info(f"Video created: {os.path.join(output_dir, video_name)}")
-    if verbose:
+    if verbose:  # True
         images_iter = tqdm.tqdm(images)
     else:
         images_iter = images
@@ -232,7 +232,7 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
             render_obs_images.append(depth_map)
 
     # add image goal if observation has image_goal info
-    if "imagegoal" in observation:
+    if "imagegoal" in observation:  # False
         rgb = observation["imagegoal"]
         if not isinstance(rgb, np.ndarray):
             rgb = rgb.cpu().numpy()
@@ -244,16 +244,16 @@ def observations_to_image(observation: Dict, info: Dict) -> np.ndarray:
     ), "Expected at least one visual sensor enabled."
 
     shapes_are_equal = len(set(x.shape for x in render_obs_images)) == 1
-    if not shapes_are_equal:
+    if not shapes_are_equal:  # True
         render_frame = tile_images(render_obs_images)
     else:
         render_frame = np.concatenate(render_obs_images, axis=1)
 
     # draw collision
-    if "collisions" in info and info["collisions"]["is_collision"]:
+    if "collisions" in info and info["collisions"]["is_collision"]:  # False
         render_frame = draw_collision(render_frame)
 
-    if "top_down_map" in info:
+    if "top_down_map" in info:  # False
         top_down_map = maps.colorize_draw_agent_and_fit_to_height(
             info["top_down_map"], render_frame.shape[0]
         )

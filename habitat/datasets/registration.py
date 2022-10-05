@@ -14,8 +14,8 @@ from habitat.datasets.vln import _try_register_r2r_vln_dataset
 
 
 def make_dataset(id_dataset, **kwargs):
-    logger.info("Initializing dataset {}".format(id_dataset))
-    _dataset = registry.get_dataset(id_dataset)
+    logger.info("Initializing dataset {}".format(id_dataset))  # RearrangeDataset-v0
+    _dataset = registry.get_dataset(id_dataset)  # RearrangeDatasetV0 class
     assert _dataset is not None, "Could not find dataset {}".format(id_dataset)
 
     return _dataset(**kwargs)  # type: ignore

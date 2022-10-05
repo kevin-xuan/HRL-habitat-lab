@@ -51,7 +51,7 @@ class BaseTrainer:
             Config: merged config for eval.
         """
 
-        config = self.config.clone()
+        config = self.config.clone()  # 默认config
 
         ckpt_cmd_opts = checkpoint_config.CMD_TRAILING_OPTS
         eval_cmd_opts = config.CMD_TRAILING_OPTS
@@ -87,24 +87,29 @@ class BaseTrainer:
             else torch.device("cpu")
         )
 
-        if "tensorboard" in self.config.VIDEO_OPTION:
+        if "tensorboard" in self.config.VIDEO_OPTION:  # ['disk']
             assert (
                 len(self.config.TENSORBOARD_DIR) > 0
             ), "Must specify a tensorboard directory for video display"
             os.makedirs(self.config.TENSORBOARD_DIR, exist_ok=True)
-        if "disk" in self.config.VIDEO_OPTION:
+        if "disk" in self.config.VIDEO_OPTION:  # True
             assert (
                 len(self.config.VIDEO_DIR) > 0
             ), "Must specify a directory for storing videos on disk"
 
         with get_writer(self.config, flush_secs=self.flush_secs) as writer:
+            # # TODO 新加的，用于eval subskills
+            # self.config.defrost()
+            # self.config.EVAL_CKPT_PATH_DIR = 'data/models/pick.pth'
+            # self.config.EVAL.SHOULD_LOAD_CKPT = False
+            # self.config.freeze()
             if (
+                
                 os.path.isfile(self.config.EVAL_CKPT_PATH_DIR)
                 or not self.config.EVAL.SHOULD_LOAD_CKPT
             ):
                 # evaluate singe checkpoint
-
-                if self.config.EVAL.SHOULD_LOAD_CKPT:
+                if self.config.EVAL.SHOULD_LOAD_CKPT:  # False
                     proposed_index = get_checkpoint_id(
                         self.config.EVAL_CKPT_PATH_DIR
                     )
@@ -174,7 +179,7 @@ class BaseRLTrainer(BaseTrainer):
         self.num_steps_done = 0
         self._last_checkpoint_percent = -1.0
 
-        if config.NUM_UPDATES != -1 and config.TOTAL_NUM_STEPS != -1:
+        if config.NUM_UPDATES != -1 and config.TOTAL_NUM_STEPS != -1:  # config.NUM_UPDATES = -1 config.TOTAL_NUM_STEPS=1e8 False
             raise RuntimeError(
                 "NUM_UPDATES and TOTAL_NUM_STEPS are both specified.  One must be -1.\n"
                 " NUM_UPDATES: {} TOTAL_NUM_STEPS: {}".format(
@@ -182,7 +187,7 @@ class BaseRLTrainer(BaseTrainer):
                 )
             )
 
-        if config.NUM_UPDATES == -1 and config.TOTAL_NUM_STEPS == -1:
+        if config.NUM_UPDATES == -1 and config.TOTAL_NUM_STEPS == -1:  # False
             raise RuntimeError(
                 "One of NUM_UPDATES and TOTAL_NUM_STEPS must be specified.\n"
                 " NUM_UPDATES: {} TOTAL_NUM_STEPS: {}".format(
@@ -190,7 +195,7 @@ class BaseRLTrainer(BaseTrainer):
                 )
             )
 
-        if config.NUM_CHECKPOINTS != -1 and config.CHECKPOINT_INTERVAL != -1:
+        if config.NUM_CHECKPOINTS != -1 and config.CHECKPOINT_INTERVAL != -1:  # config.NUM_CHECKPOINTS=20 config.CHECKPOINT_INTERVAL=-1
             raise RuntimeError(
                 "NUM_CHECKPOINTS and CHECKPOINT_INTERVAL are both specified."
                 "  One must be -1.\n"
@@ -207,8 +212,8 @@ class BaseRLTrainer(BaseTrainer):
                 )
             )
 
-    def percent_done(self) -> float:
-        if self.config.NUM_UPDATES != -1:
+    def percent_done(self) -> float:  # 返回百分比进度
+        if self.config.NUM_UPDATES != -1:  # False 
             return self.num_updates_done / self.config.NUM_UPDATES
         else:
             return self.num_steps_done / self.config.TOTAL_NUM_STEPS
@@ -216,9 +221,9 @@ class BaseRLTrainer(BaseTrainer):
     def is_done(self) -> bool:
         return self.percent_done() >= 1.0
 
-    def should_checkpoint(self) -> bool:
+    def should_checkpoint(self) -> bool:  # 是否应该保存ckpt
         needs_checkpoint = False
-        if self.config.NUM_CHECKPOINTS != -1:
+        if self.config.NUM_CHECKPOINTS != -1:  # NUM_CHECKPOINTS=20 
             checkpoint_every = 1 / self.config.NUM_CHECKPOINTS
             if (
                 self._last_checkpoint_percent + checkpoint_every
@@ -233,17 +238,18 @@ class BaseRLTrainer(BaseTrainer):
 
         return needs_checkpoint
 
-    def _should_save_resume_state(self) -> bool:
+    def _should_save_resume_state(self) -> bool:  # 跟ddppo有关
+        # save_state_batch_only=False  save_resume_state_interval = 100
         return SAVE_STATE.is_set() or (
             (
-                not self.config.RL.preemption.save_state_batch_only
+                not self.config.RL.preemption.save_state_batch_only  
                 or is_slurm_batch_job()
             )
             and (
                 (
                     int(self.num_updates_done + 1)
-                    % self.config.RL.preemption.save_resume_state_interval
-                )
+                    % self.config.RL.preemption.save_resume_state_interval  
+                )  
                 == 0
             )
         )

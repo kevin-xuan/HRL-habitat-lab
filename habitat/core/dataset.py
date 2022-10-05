@@ -53,7 +53,7 @@ class Episode:
     This information is provided by a :ref:`Dataset` instance.
     """
 
-    episode_id: str = attr.ib(default=None, validator=not_none_validator)
+    episode_id: str = attr.ib(default=None, validator=not_none_validator)  # 不能为None
     scene_id: str = attr.ib(default=None, validator=not_none_validator)
     # path to the SceneDataset config file
     scene_dataset_config: str = attr.ib(
@@ -131,13 +131,13 @@ class Dataset(Generic[T]):
         r"""Returns a filter function that takes an episode and returns True if that
         episode is valid under the CONTENT_SCENES feild of the provided config
         """
-        scenes_to_load = set(config.CONTENT_SCENES)
+        scenes_to_load = set(config.CONTENT_SCENES)  # {} or {*}
 
         def _filter(ep: T) -> bool:
             return (
-                ALL_SCENES_MASK in scenes_to_load
+                ALL_SCENES_MASK in scenes_to_load  
                 or cls.scene_from_scene_path(ep.scene_id) in scenes_to_load
-            )
+            )  # False or True
 
         return _filter
 
@@ -299,7 +299,7 @@ class Dataset(Generic[T]):
         rand_items = np.random.choice(
             self.num_episodes, num_episodes, replace=False
         ).tolist()
-        if collate_scene_ids:
+        if collate_scene_ids:  # 将同一场景的episode放在一起
             scene_ids: Dict[str, List[int]] = {}
             for rand_ind in rand_items:
                 scene = self.episodes[rand_ind].scene_id
@@ -311,7 +311,7 @@ class Dataset(Generic[T]):
         ep_ind = 0
         new_episodes = []
         for nn in range(num_splits):
-            new_dataset = copy.copy(self)  # Creates a shallow copy
+            new_dataset = copy.copy(self)  # Creates a shallow copy  
             new_dataset.episodes = []
             new_datasets.append(new_dataset)
             for _ii in range(split_lengths[nn]):
@@ -357,13 +357,13 @@ class EpisodeIterator(Iterator[T]):
         self,
         episodes: Sequence[T],
         cycle: bool = True,
-        shuffle: bool = False,
+        shuffle: bool = False,  # True
         group_by_scene: bool = True,
         max_scene_repeat_episodes: int = -1,
-        max_scene_repeat_steps: int = -1,
+        max_scene_repeat_steps: int = -1,  # 10000
         num_episode_sample: int = -1,
         step_repetition_range: float = 0.2,
-        seed: int = None,
+        seed: int = None,  # 100
     ) -> None:
         r"""..
 
@@ -391,16 +391,16 @@ class EpisodeIterator(Iterator[T]):
             np.random.seed(seed)
 
         # sample episodes
-        if num_episode_sample >= 0:
+        if num_episode_sample >= 0:  # -1
             episodes = np.random.choice(  # type: ignore[assignment]
                 episodes, num_episode_sample, replace=False  # type: ignore[arg-type]
             )
 
-        if not isinstance(episodes, list):
+        if not isinstance(episodes, list):  # False
             episodes = list(episodes)
 
         self.episodes = episodes
-        self.cycle = cycle
+        self.cycle = cycle  # 3个都是True
         self.group_by_scene = group_by_scene
         self.shuffle = shuffle
 
@@ -408,10 +408,10 @@ class EpisodeIterator(Iterator[T]):
             random.shuffle(self.episodes)
 
         if group_by_scene:
-            self.episodes = self._group_scenes(self.episodes)
+            self.episodes = self._group_scenes(self.episodes)  # 把相同scene_id的episodes紧靠着一起
 
-        self.max_scene_repetition_episodes = max_scene_repeat_episodes
-        self.max_scene_repetition_steps = max_scene_repeat_steps
+        self.max_scene_repetition_episodes = max_scene_repeat_episodes  # -1
+        self.max_scene_repetition_steps = max_scene_repeat_steps  # 10000
 
         self._rep_count = -1  # 0 corresponds to first episode already returned
         self._step_count = 0
@@ -419,8 +419,8 @@ class EpisodeIterator(Iterator[T]):
 
         self._iterator = iter(self.episodes)
 
-        self.step_repetition_range = step_repetition_range
-        self._set_shuffle_intervals()
+        self.step_repetition_range = step_repetition_range  # 0.2
+        self._set_shuffle_intervals()  # self._max_rep_episode=None  self._max_rep_step = [8000, 12000]的一个随机整数
 
     def __iter__(self) -> "EpisodeIterator":
         return self
@@ -433,13 +433,13 @@ class EpisodeIterator(Iterator[T]):
         self._forced_scene_switch_if()
 
         next_episode = next(self._iterator, None)
-        if next_episode is None:
-            if not self.cycle:
+        if next_episode is None:  # 如果为空,则随机打乱迭代器,重新迭代
+            if not self.cycle:  # False
                 raise StopIteration
 
             self._iterator = iter(self.episodes)
 
-            if self.shuffle:
+            if self.shuffle:  # True
                 self._shuffle()
 
             next_episode = next(self._iterator)
@@ -447,7 +447,7 @@ class EpisodeIterator(Iterator[T]):
         if (
             self._prev_scene_id != next_episode.scene_id
             and self._prev_scene_id is not None
-        ):
+        ):  # 如果两个相邻episodes的scene不同,则重置步数
             self._rep_count = 0
             self._step_count = 0
 
@@ -512,12 +512,12 @@ class EpisodeIterator(Iterator[T]):
         )
 
     def _set_shuffle_intervals(self) -> None:
-        if self.max_scene_repetition_episodes > 0:
+        if self.max_scene_repetition_episodes > 0:  # -1 False
             self._max_rep_episode = self.max_scene_repetition_episodes
         else:
             self._max_rep_episode = None
 
-        if self.max_scene_repetition_steps > 0:
+        if self.max_scene_repetition_steps > 0:  # 10000 True
             self._max_rep_step = self._randomize_value(
                 self.max_scene_repetition_steps, self.step_repetition_range
             )
@@ -532,14 +532,14 @@ class EpisodeIterator(Iterator[T]):
         if (
             self._max_rep_episode is not None
             and self._rep_count >= self._max_rep_episode
-        ):
+        ):  # False 
             do_switch = True
 
         # Shuffle if a scene has been used for more than _max_rep_step steps in a row
         if (
             self._max_rep_step is not None
             and self._step_count >= self._max_rep_step
-        ):
+        ):  # 大于阈值时才切换scene
             do_switch = True
 
         if do_switch:

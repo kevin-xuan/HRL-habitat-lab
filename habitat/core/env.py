@@ -84,7 +84,7 @@ class Env:
         self._episode_force_changed = False
 
         # load the first scene if dataset is present
-        if self._dataset:
+        if self._dataset:  # True
             assert (
                 len(self._dataset.episodes) > 0
             ), "dataset should have non-empty episodes list"
@@ -103,10 +103,10 @@ class Env:
 
         self._sim = make_sim(
             id_sim=self._config.SIMULATOR.TYPE, config=self._config.SIMULATOR
-        )
+        )  # RearrangeSim-v0
 
         self._task = make_task(
-            self._config.TASK.TYPE,
+            self._config.TASK.TYPE,  # 'RearrangeCompositeTask-v0'
             config=self._config.TASK,
             sim=self._sim,
             dataset=self._dataset,
@@ -120,8 +120,8 @@ class Env:
         self.action_space = self._task.action_space
         self._max_episode_seconds = (
             self._config.ENVIRONMENT.MAX_EPISODE_SECONDS
-        )
-        self._max_episode_steps = self._config.ENVIRONMENT.MAX_EPISODE_STEPS
+        )  # 10000000
+        self._max_episode_steps = self._config.ENVIRONMENT.MAX_EPISODE_STEPS  # 1500
         self._elapsed_steps = 0
         self._episode_start_time: Optional[float] = None
         self._episode_over = False
@@ -211,11 +211,11 @@ class Env:
     def _past_limit(self) -> bool:
         return (
             self._max_episode_steps != 0
-            and self._max_episode_steps <= self._elapsed_steps
+            and self._max_episode_steps <= self._elapsed_steps  
         ) or (
             self._max_episode_seconds != 0
             and self._max_episode_seconds <= self._elapsed_seconds
-        )
+        ) 
 
     def _reset_stats(self) -> None:
         self._episode_start_time = time.time()
@@ -232,13 +232,13 @@ class Env:
         # Delete the shortest path cache of the current episode
         # Caching it for the next time we see this episode isn't really worth
         # it
-        if self._current_episode is not None:
+        if self._current_episode is not None:  # True
             self._current_episode._shortest_path_cache = None
 
         if (
             self._episode_iterator is not None
             and self._episode_from_iter_on_reset
-        ):
+        ):  # False
             self._current_episode = next(self._episode_iterator)
 
         # This is always set to true after a reset that way
@@ -335,7 +335,7 @@ class Env:
 
         self._sim.reconfigure(self._config.SIMULATOR)
 
-    def render(self, mode="rgb") -> np.ndarray:
+    def render(self, mode="rgb") -> np.ndarray:  
         return self._sim.render(mode)
 
     def close(self) -> None:

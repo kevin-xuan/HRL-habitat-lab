@@ -55,13 +55,13 @@ class PddlDomain:
         self._sim_info: Optional[PddlSimInfo] = None
         self._config = cur_task_config
 
-        if not osp.isabs(domain_file_path):
+        if not osp.isabs(domain_file_path):  # True
             parent_dir = osp.dirname(__file__)
             domain_file_path = osp.join(
                 parent_dir, "domain_configs", domain_file_path
-            )
+            )  # '/home/raoxuan/code/habitat-lab/habitat/tasks/rearrange/multi_task/domain_configs/replica_cad'
 
-        if "." not in domain_file_path:
+        if "." not in domain_file_path:  # True
             domain_file_path += ".yaml"
 
         with open(domain_file_path, "r") as f:

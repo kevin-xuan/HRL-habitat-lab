@@ -426,8 +426,8 @@ class ObjectToGoalDistance(Measure):
         self.update_metric(*args, episode=episode, **kwargs)
 
     def update_metric(self, *args, episode, **kwargs):
-        idxs, goal_pos = self._sim.get_targets()
-        scene_pos = self._sim.get_scene_pos()
+        idxs, goal_pos = self._sim.get_targets()  # (1, 3)
+        scene_pos = self._sim.get_scene_pos()  # (30, 3)
         target_pos = scene_pos[idxs]
         distances = np.linalg.norm(target_pos - goal_pos, ord=2, axis=-1)
         self._metric = {str(idx): dist for idx, dist in zip(idxs, distances)}

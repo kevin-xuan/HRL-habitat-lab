@@ -291,10 +291,10 @@ class RNNStateEncoder(nn.Module):
 
         x, hidden_states = self.rnn(
             x.unsqueeze(0), self.unpack_hidden(hidden_states)
-        )
-        hidden_states = self.pack_hidden(hidden_states)
+        )  # (1, 32, 512) 
+        hidden_states = self.pack_hidden(hidden_states)  # (4, 32, 512)
 
-        x = x.squeeze(0)
+        x = x.squeeze(0)  # (32, 512)
         return x, hidden_states
 
     def seq_forward(
@@ -337,13 +337,13 @@ class RNNStateEncoder(nn.Module):
     def forward(
         self, x, hidden_states, masks
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        hidden_states = hidden_states.permute(1, 0, 2)
-        if x.size(0) == hidden_states.size(1):
+        hidden_states = hidden_states.permute(1, 0, 2)  # (32, 4, 512) -> (4, 32, 512) num_layers * batch * hidden_dim
+        if x.size(0) == hidden_states.size(1):  # True
             x, hidden_states = self.single_forward(x, hidden_states, masks)
         else:
             x, hidden_states = self.seq_forward(x, hidden_states, masks)
 
-        hidden_states = hidden_states.permute(1, 0, 2)
+        hidden_states = hidden_states.permute(1, 0, 2)  # (4, 32, 512) -> (32, 4, 512)
 
         return x, hidden_states
 
@@ -355,7 +355,7 @@ class LSTMStateEncoder(RNNStateEncoder):
         hidden_size: int,
         num_layers: int = 1,
     ):
-        super().__init__()
+        super().__init__()  # pass
 
         self.num_recurrent_layers = num_layers * 2
 
@@ -375,7 +375,7 @@ class LSTMStateEncoder(RNNStateEncoder):
     def unpack_hidden(
         self, hidden_states
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        lstm_states = torch.chunk(hidden_states, 2, 0)
+        lstm_states = torch.chunk(hidden_states, 2, 0)  # 沿着dim=0分成2个tensor块 ()
         return (lstm_states[0].contiguous(), lstm_states[1].contiguous())
 
 
@@ -417,6 +417,6 @@ def build_rnn_state_encoder(
     if rnn_type == "gru":
         return GRUStateEncoder(input_size, hidden_size, num_layers)
     elif rnn_type == "lstm":
-        return LSTMStateEncoder(input_size, hidden_size, num_layers)
+        return LSTMStateEncoder(input_size, hidden_size, num_layers)  # input_size = 512 + 32 + 14
     else:
         raise RuntimeError(f"Did not recognize rnn type '{rnn_type}'")

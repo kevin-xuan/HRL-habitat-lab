@@ -112,7 +112,7 @@ class PPOTrainer(BaseRLTrainer):
         r"""All reduce helper method that moves things to the correct
         device and only runs if distributed
         """
-        if not self._is_distributed:
+        if not self._is_distributed: 
             return t
 
         orig_device = t.device
@@ -132,38 +132,38 @@ class PPOTrainer(BaseRLTrainer):
         """
         logger.add_filehandler(self.config.LOG_FILE)
 
-        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)
-        observation_space = self.obs_space
+        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)  # PointNavResNetPolicy
+        observation_space = self.obs_space  # space.Dict 包括是否抓取物体 机器人关节 目的地的GPS 目的地感知sensor 起始GPS 起始sensor 相对重置位置 D摄像头 
         self.obs_transforms = get_active_obs_transforms(self.config)
-        observation_space = apply_obs_transforms_obs_space(
+        observation_space = apply_obs_transforms_obs_space(  # 在obs_space上应用img transform
             observation_space, self.obs_transforms
         )
 
-        self.actor_critic = policy.from_config(
+        self.actor_critic = policy.from_config( 
             self.config,
             observation_space,
             self.policy_action_space,
             orig_action_space=self.orig_policy_action_space,
-        )
-        self.obs_space = observation_space
+        )  # 初始化CNN和RNN主体,而super().__init__初始化action和value head
+        self.obs_space = observation_space  # space.Dict
         self.actor_critic.to(self.device)
 
         if (
             self.config.RL.DDPPO.pretrained_encoder
             or self.config.RL.DDPPO.pretrained
-        ):
+        ):  # False & False
             pretrained_state = torch.load(
                 self.config.RL.DDPPO.pretrained_weights, map_location="cpu"
-            )
+            )  # 是否加载预训练模型, False
 
-        if self.config.RL.DDPPO.pretrained:
+        if self.config.RL.DDPPO.pretrained:  # False
             self.actor_critic.load_state_dict(
                 {  # type: ignore
                     k[len("actor_critic.") :]: v
                     for k, v in pretrained_state["state_dict"].items()
                 }
             )
-        elif self.config.RL.DDPPO.pretrained_encoder:
+        elif self.config.RL.DDPPO.pretrained_encoder:  # False
             prefix = "actor_critic.net.visual_encoder."
             self.actor_critic.net.visual_encoder.load_state_dict(
                 {
@@ -173,27 +173,27 @@ class PPOTrainer(BaseRLTrainer):
                 }
             )
 
-        if not self.config.RL.DDPPO.train_encoder:
+        if not self.config.RL.DDPPO.train_encoder:  # False
             self._static_encoder = True
             for param in self.actor_critic.net.visual_encoder.parameters():
                 param.requires_grad_(False)
 
-        if self.config.RL.DDPPO.reset_critic:
+        if self.config.RL.DDPPO.reset_critic:  # True
             nn.init.orthogonal_(self.actor_critic.critic.fc.weight)
             nn.init.constant_(self.actor_critic.critic.fc.bias, 0)
 
         self.agent = (DDPPO if self._is_distributed else PPO)(
             actor_critic=self.actor_critic,
-            clip_param=ppo_cfg.clip_param,
-            ppo_epoch=ppo_cfg.ppo_epoch,
-            num_mini_batch=ppo_cfg.num_mini_batch,
-            value_loss_coef=ppo_cfg.value_loss_coef,
-            entropy_coef=ppo_cfg.entropy_coef,
-            lr=ppo_cfg.lr,
-            eps=ppo_cfg.eps,
-            max_grad_norm=ppo_cfg.max_grad_norm,
-            use_normalized_advantage=ppo_cfg.use_normalized_advantage,
-        )
+            clip_param=ppo_cfg.clip_param,  # 0.2
+            ppo_epoch=ppo_cfg.ppo_epoch,  # 2
+            num_mini_batch=ppo_cfg.num_mini_batch,  # 2
+            value_loss_coef=ppo_cfg.value_loss_coef,  # 0.5
+            entropy_coef=ppo_cfg.entropy_coef,  # 1e-4
+            lr=ppo_cfg.lr,   # 2.5e-4
+            eps=ppo_cfg.eps,  # 1e-5
+            max_grad_norm=ppo_cfg.max_grad_norm,  # 0.2
+            use_normalized_advantage=ppo_cfg.use_normalized_advantage,  # False
+        )  # 初始化PPO算法,也即agent的
 
     def _init_envs(self, config=None):
         if config is None:
@@ -205,20 +205,20 @@ class PPOTrainer(BaseRLTrainer):
         )
 
     def _init_train(self):
-        resume_state = load_resume_state(self.config)
+        resume_state = load_resume_state(self.config)  # None
         if resume_state is not None:
             self.config: Config = resume_state["config"]
 
-        if self.config.RL.DDPPO.force_distributed:
+        if self.config.RL.DDPPO.force_distributed:  # False
             self._is_distributed = True
 
-        if is_slurm_batch_job():
+        if is_slurm_batch_job():  # False
             add_signal_handlers()
 
-        if self._is_distributed:
+        if self._is_distributed:  # False
             local_rank, tcp_store = init_distrib_slurm(
                 self.config.RL.DDPPO.distrib_backend
-            )
+            )  # distrib_backend=NCCL
             if rank0_only():
                 logger.info(
                     "Initialized DD-PPO with {} workers".format(
@@ -243,22 +243,22 @@ class PPOTrainer(BaseRLTrainer):
             )
             self.num_rollouts_done_store.set("num_done", "0")
 
-        if rank0_only() and self.config.VERBOSE:
+        if rank0_only() and self.config.VERBOSE:  # True & False
             logger.info(f"config: {self.config}")
 
         profiling_wrapper.configure(
-            capture_start_step=self.config.PROFILING.CAPTURE_START_STEP,
-            num_steps_to_capture=self.config.PROFILING.NUM_STEPS_TO_CAPTURE,
+            capture_start_step=self.config.PROFILING.CAPTURE_START_STEP,  # -1
+            num_steps_to_capture=self.config.PROFILING.NUM_STEPS_TO_CAPTURE,  # -1
         )
 
         self._init_envs()
 
-        action_space = self.envs.action_spaces[0]
+        action_space = self.envs.action_spaces[0]  # spaces.Box (11, ) Arm (7维, [-1, 1]) + Grasp(1维) + Base(2维) + Stop(1维) 
         self.policy_action_space = action_space
-        self.orig_policy_action_space = self.envs.orig_action_spaces[0]
-        if is_continuous_action_space(action_space):
+        self.orig_policy_action_space = self.envs.orig_action_spaces[0]  # Dict形式
+        if is_continuous_action_space(action_space):  
             # Assume ALL actions are NOT discrete
-            action_shape = (get_num_actions(action_space),)
+            action_shape = (get_num_actions(action_space),)  # (11, )
             discrete_actions = False
         else:
             # For discrete pointnav
@@ -272,21 +272,21 @@ class PPOTrainer(BaseRLTrainer):
         else:
             self.device = torch.device("cpu")
 
-        if rank0_only() and not os.path.isdir(self.config.CHECKPOINT_FOLDER):
+        if rank0_only() and not os.path.isdir(self.config.CHECKPOINT_FOLDER):  # True & True 生成checkpoint目录
             os.makedirs(self.config.CHECKPOINT_FOLDER)
 
         self._setup_actor_critic_agent(ppo_cfg)
-        if self._is_distributed:
+        if self._is_distributed:  # False
             self.agent.init_distributed(find_unused_params=True)  # type: ignore
 
         logger.info(
             "agent number of parameters: {}".format(
-                sum(param.numel() for param in self.agent.parameters())
+                sum(param.numel() for param in self.agent.parameters())  # 获取参数的数量
             )
         )
 
         obs_space = self.obs_space
-        if self._static_encoder:
+        if self._static_encoder:  # False
             self._encoder = self.actor_critic.net.visual_encoder
             obs_space = spaces.Dict(
                 {
@@ -300,40 +300,40 @@ class PPOTrainer(BaseRLTrainer):
                 }
             )
 
-        self._nbuffers = 2 if ppo_cfg.use_double_buffered_sampler else 1
+        self._nbuffers = 2 if ppo_cfg.use_double_buffered_sampler else 1  # 1
 
-        self.rollouts = RolloutStorage(
-            ppo_cfg.num_steps,
-            self.envs.num_envs,
-            obs_space,
-            self.policy_action_space,
-            ppo_cfg.hidden_size,
-            num_recurrent_layers=self.actor_critic.net.num_recurrent_layers,
-            is_double_buffered=ppo_cfg.use_double_buffered_sampler,
-            action_shape=action_shape,
-            discrete_actions=discrete_actions,
+        self.rollouts = RolloutStorage(  
+            ppo_cfg.num_steps,  # 128
+            self.envs.num_envs,  # 32
+            obs_space,  # space.Dict
+            self.policy_action_space,  # space.Dict (11, )
+            ppo_cfg.hidden_size,  # 512
+            num_recurrent_layers=self.actor_critic.net.num_recurrent_layers,  # 4
+            is_double_buffered=ppo_cfg.use_double_buffered_sampler,  # False
+            action_shape=action_shape,  # (11, )
+            discrete_actions=discrete_actions,  # False
         )
         self.rollouts.to(self.device)
 
-        observations = self.envs.reset()
+        observations = self.envs.reset()  # list 包含32个orderedDict, 每个Dict包含8个obs, 
         batch = batch_obs(
             observations, device=self.device, cache=self._obs_batching_cache
-        )
+        )  # 转换为TensorDict, 把属于同一obs类型(robot_head_depth)的tensor堆叠在一起
         batch = apply_obs_transforms_batch(batch, self.obs_transforms)  # type: ignore
 
-        if self._static_encoder:
+        if self._static_encoder:  # False
             with torch.no_grad():
                 batch["visual_features"] = self._encoder(batch)
 
-        self.rollouts.buffers["observations"][0] = batch  # type: ignore
+        self.rollouts.buffers["observations"][0] = batch  # type: ignore 0 代表128+1 steps中的第一个,即rnn的输入
 
-        self.current_episode_reward = torch.zeros(self.envs.num_envs, 1)
+        self.current_episode_reward = torch.zeros(self.envs.num_envs, 1)  # (32, 1)
         self.running_episode_stats = dict(
             count=torch.zeros(self.envs.num_envs, 1),
             reward=torch.zeros(self.envs.num_envs, 1),
         )
         self.window_episode_stats = defaultdict(
-            lambda: deque(maxlen=ppo_cfg.reward_window_size)
+            lambda: deque(maxlen=ppo_cfg.reward_window_size)  # 50
         )
 
         self.env_time = 0.0
@@ -385,10 +385,10 @@ class PPOTrainer(BaseRLTrainer):
     ) -> Dict[str, float]:
         result = {}
         for k, v in info.items():
-            if not isinstance(k, str) or k in cls.METRICS_BLACKLIST:
+            if not isinstance(k, str) or k in cls.METRICS_BLACKLIST:  # False
                 continue
 
-            if isinstance(v, dict):
+            if isinstance(v, dict):  # False
                 result.update(
                     {
                         k + "." + subk: subv
@@ -419,7 +419,7 @@ class PPOTrainer(BaseRLTrainer):
         return results
 
     def _compute_actions_and_step_envs(self, buffer_index: int = 0):
-        num_envs = self.envs.num_envs
+        num_envs = self.envs.num_envs  # 32 - self._paused
         env_slice = slice(
             int(buffer_index * num_envs / self._nbuffers),
             int((buffer_index + 1) * num_envs / self._nbuffers),
@@ -430,7 +430,7 @@ class PPOTrainer(BaseRLTrainer):
         # sample actions
         with torch.no_grad():
             step_batch = self.rollouts.buffers[
-                self.rollouts.current_rollout_step_idxs[buffer_index],
+                self.rollouts.current_rollout_step_idxs[buffer_index],  # 0
                 env_slice,
             ]
 
@@ -441,8 +441,8 @@ class PPOTrainer(BaseRLTrainer):
                 actions_log_probs,
                 recurrent_hidden_states,
             ) = self.actor_critic.act(
-                step_batch["observations"],
-                step_batch["recurrent_hidden_states"],
+                step_batch["observations"],  # TensorDict
+                step_batch["recurrent_hidden_states"],  # tensor
                 step_batch["prev_actions"],
                 step_batch["masks"],
             )
@@ -454,10 +454,10 @@ class PPOTrainer(BaseRLTrainer):
         t_step_env = time.time()
 
         for index_env, act in zip(
-            range(env_slice.start, env_slice.stop), actions.unbind(0)
+            range(env_slice.start, env_slice.stop), actions.unbind(0)  # 沿着第0维将action分成每个env的action所组成的tuple
         ):
-            if is_continuous_action_space(self.policy_action_space):
-                # Clipping actions to the specified limits
+            if is_continuous_action_space(self.policy_action_space):  # True
+                # Clipping actions to the specified limits [-1, 1]
                 act = np.clip(
                     act.detach().cpu().numpy(),
                     self.policy_action_space.low,
@@ -471,14 +471,14 @@ class PPOTrainer(BaseRLTrainer):
 
         self.rollouts.insert(
             next_recurrent_hidden_states=recurrent_hidden_states,
-            actions=actions,
+            actions=actions,  # 算是prev_action
             action_log_probs=actions_log_probs,
             value_preds=values,
             buffer_index=buffer_index,
         )
 
     def _collect_environment_result(self, buffer_index: int = 0):
-        num_envs = self.envs.num_envs
+        num_envs = self.envs.num_envs  # 32 - num_paused
         env_slice = slice(
             int(buffer_index * num_envs / self._nbuffers),
             int((buffer_index + 1) * num_envs / self._nbuffers),
@@ -507,34 +507,35 @@ class PPOTrainer(BaseRLTrainer):
             dtype=torch.float,
             device=self.current_episode_reward.device,
         )
-        rewards = rewards.unsqueeze(1)
+        rewards = rewards.unsqueeze(1)  # (32, 1)
 
         not_done_masks = torch.tensor(
             [[not done] for done in dones],
             dtype=torch.bool,
             device=self.current_episode_reward.device,
-        )
-        done_masks = torch.logical_not(not_done_masks)
+        )  # (32, 1)
+        done_masks = torch.logical_not(not_done_masks)  # 逻辑非运算, 表示env有没有结束
 
         self.current_episode_reward[env_slice] += rewards
-        current_ep_reward = self.current_episode_reward[env_slice]
+        current_ep_reward = self.current_episode_reward[env_slice]  # (32, 1)
+        # 当完成episode时才加上current_ep_reward, 否则加0;且当完成episodes时count+1
         self.running_episode_stats["reward"][env_slice] += current_ep_reward.where(done_masks, current_ep_reward.new_zeros(()))  # type: ignore
         self.running_episode_stats["count"][env_slice] += done_masks.float()  # type: ignore
-        for k, v_k in self._extract_scalars_from_infos(infos).items():
+        for k, v_k in self._extract_scalars_from_infos(infos).items():  # 属于同一info_type的value在一起
             v = torch.tensor(
                 v_k,
                 dtype=torch.float,
                 device=self.current_episode_reward.device,
             ).unsqueeze(1)
-            if k not in self.running_episode_stats:
+            if k not in self.running_episode_stats:  # True
                 self.running_episode_stats[k] = torch.zeros_like(
                     self.running_episode_stats["count"]
                 )
             self.running_episode_stats[k][env_slice] += v.where(done_masks, v.new_zeros(()))  # type: ignore
 
-        self.current_episode_reward[env_slice].masked_fill_(done_masks, 0.0)
+        self.current_episode_reward[env_slice].masked_fill_(done_masks, 0.0)  # 完成episodes时重置reward
 
-        if self._static_encoder:
+        if self._static_encoder:  # False
             with torch.no_grad():
                 batch["visual_features"] = self._encoder(batch)
 
@@ -574,7 +575,7 @@ class PPOTrainer(BaseRLTrainer):
 
         self.rollouts.compute_returns(
             next_value, ppo_cfg.use_gae, ppo_cfg.gamma, ppo_cfg.tau
-        )
+        )  # 计算每个step的returns
 
         self.agent.train()
 
@@ -582,7 +583,7 @@ class PPOTrainer(BaseRLTrainer):
             self.rollouts
         )
 
-        self.rollouts.after_update()
+        self.rollouts.after_update()  # 重置rollout_step=0,obs为上次rollout的结果
         self.pth_time += time.time() - t_update_model
 
         return (
@@ -594,17 +595,17 @@ class PPOTrainer(BaseRLTrainer):
     def _coalesce_post_step(
         self, losses: Dict[str, float], count_steps_delta: int
     ) -> Dict[str, float]:
-        stats_ordering = sorted(self.running_episode_stats.keys())
+        stats_ordering = sorted(self.running_episode_stats.keys())  # 17个key
         stats = torch.stack(
             [self.running_episode_stats[k] for k in stats_ordering], 0
-        )
+        )  # (17, 32, 1)
 
         stats = self._all_reduce(stats)
 
         for i, k in enumerate(stats_ordering):
             self.window_episode_stats[k].append(stats[i])
 
-        if self._is_distributed:
+        if self._is_distributed:  # False
             loss_name_ordering = sorted(losses.keys())
             stats = torch.tensor(
                 [losses[k] for k in loss_name_ordering] + [count_steps_delta],
@@ -619,7 +620,7 @@ class PPOTrainer(BaseRLTrainer):
                 k: stats[i].item() for i, k in enumerate(loss_name_ordering)
             }
 
-        if self._is_distributed and rank0_only():
+        if self._is_distributed and rank0_only():  # False
             self.num_rollouts_done_store.set("num_done", "0")
 
         self.num_steps_done += count_steps_delta
@@ -693,7 +694,7 @@ class PPOTrainer(BaseRLTrainer):
             )
 
     def should_end_early(self, rollout_step) -> bool:
-        if not self._is_distributed:
+        if not self._is_distributed:  # True
             return False
         # This is where the preemption of workers happens.  If a
         # worker detects it will be a straggler, it preempts itself!
@@ -702,7 +703,7 @@ class PPOTrainer(BaseRLTrainer):
             >= self.config.RL.PPO.num_steps * self.SHORT_ROLLOUT_THRESHOLD
         ) and int(self.num_rollouts_done_store.get("num_done")) >= (
             self.config.RL.DDPPO.sync_frac * torch.distributed.get_world_size()
-        )
+        )  # 在DDPPO情况下,只有当rollout_step超过四分之一 num_steps时且达到抢占阈值时停止该worker
 
     @profiling_wrapper.RangeContext("train")
     def train(self) -> None:
@@ -722,7 +723,7 @@ class PPOTrainer(BaseRLTrainer):
             lr_lambda=lambda x: 1 - self.percent_done(),
         )
 
-        resume_state = load_resume_state(self.config)
+        resume_state = load_resume_state(self.config)  # None
         if resume_state is not None:
             self.agent.load_state_dict(resume_state["state_dict"])
             self.agent.optimizer.load_state_dict(resume_state["optim_state"])
@@ -755,12 +756,12 @@ class PPOTrainer(BaseRLTrainer):
                 profiling_wrapper.on_start_step()
                 profiling_wrapper.range_push("train update")
 
-                if ppo_cfg.use_linear_clip_decay:
+                if ppo_cfg.use_linear_clip_decay:  # False
                     self.agent.clip_param = ppo_cfg.clip_param * (
                         1 - self.percent_done()
                     )
 
-                if rank0_only() and self._should_save_resume_state():
+                if rank0_only() and self._should_save_resume_state():  # False
                     requeue_stats = dict(
                         env_time=self.env_time,
                         pth_time=self.pth_time,
@@ -784,7 +785,7 @@ class PPOTrainer(BaseRLTrainer):
                         self.config,
                     )
 
-                if EXIT.is_set():
+                if EXIT.is_set():  # False
                     profiling_wrapper.range_pop()  # train update
 
                     self.envs.close()
@@ -798,37 +799,37 @@ class PPOTrainer(BaseRLTrainer):
                 profiling_wrapper.range_push("rollouts loop")
 
                 profiling_wrapper.range_push("_collect_rollout_step")
-                for buffer_index in range(self._nbuffers):
-                    self._compute_actions_and_step_envs(buffer_index)
+                for buffer_index in range(self._nbuffers):  # 1 
+                    self._compute_actions_and_step_envs(buffer_index)  # 一步rollout计算action和hidden_state,且将输出(value, reward...)保存起来
 
-                for step in range(ppo_cfg.num_steps):
+                for step in range(ppo_cfg.num_steps):  # 128 lstm 每个step都会执行一个transition
                     is_last_step = (
                         self.should_end_early(step + 1)
                         or (step + 1) == ppo_cfg.num_steps
                     )
 
-                    for buffer_index in range(self._nbuffers):
+                    for buffer_index in range(self._nbuffers):  # 1
                         count_steps_delta += self._collect_environment_result(
                             buffer_index
-                        )
+                        )  # 搜集前一个step的结果
 
                         if (buffer_index + 1) == self._nbuffers:
                             profiling_wrapper.range_pop()  # _collect_rollout_step
 
-                        if not is_last_step:
-                            if (buffer_index + 1) == self._nbuffers:
+                        if not is_last_step:  # True
+                            if (buffer_index + 1) == self._nbuffers:  # True
                                 profiling_wrapper.range_push(
                                     "_collect_rollout_step"
                                 )
 
-                            self._compute_actions_and_step_envs(buffer_index)
+                            self._compute_actions_and_step_envs(buffer_index)  # 执行下一步rollout
 
                     if is_last_step:
                         break
 
                 profiling_wrapper.range_pop()  # rollouts loop
 
-                if self._is_distributed:
+                if self._is_distributed:  # False
                     self.num_rollouts_done_store.add("num_done", 1)
 
                 (
@@ -837,7 +838,7 @@ class PPOTrainer(BaseRLTrainer):
                     dist_entropy,
                 ) = self._update_agent()
 
-                if ppo_cfg.use_linear_lr_decay:
+                if ppo_cfg.use_linear_lr_decay:  # False
                     lr_scheduler.step()  # type: ignore
 
                 self.num_updates_done += 1
@@ -887,14 +888,20 @@ class PPOTrainer(BaseRLTrainer):
             raise RuntimeError("Evaluation does not support distributed mode")
 
         # Map location CPU is almost always better than mapping to a CUDA device.
-        if self.config.EVAL.SHOULD_LOAD_CKPT:
+        # # TODO 新加的,用于验证subskills
+        # self.config.defrost()
+        # self.config.EVAL.SHOULD_LOAD_CKPT = True
+        # self.config.EVAL.USE_CKPT_CONFIG = False  # 为True则加载train的config
+        # self.config.NUM_ENVIRONMENTS = 1
+        # self.config.freeze()
+        if self.config.EVAL.SHOULD_LOAD_CKPT:  # False
             ckpt_dict = self.load_checkpoint(
                 checkpoint_path, map_location="cpu"
             )
         else:
             ckpt_dict = {}
 
-        if self.config.EVAL.USE_CKPT_CONFIG:
+        if self.config.EVAL.USE_CKPT_CONFIG:  # False
             config = self._setup_eval_config(ckpt_dict["config"])
         else:
             config = self.config.clone()
@@ -908,7 +915,7 @@ class PPOTrainer(BaseRLTrainer):
         if (
             len(self.config.VIDEO_OPTION) > 0
             and self.config.VIDEO_RENDER_TOP_DOWN
-        ):
+        ):  # ['disk'] & False -> False
             config.defrost()
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("TOP_DOWN_MAP")
             config.TASK_CONFIG.TASK.MEASUREMENTS.append("COLLISIONS")
@@ -917,7 +924,7 @@ class PPOTrainer(BaseRLTrainer):
         if (
             len(config.VIDEO_RENDER_VIEWS) > 0
             and len(self.config.VIDEO_OPTION) > 0
-        ):
+        ):  # [THIRD_RGB_SENSOR] & ["disk"] -> True
             config.defrost()
             for render_view in config.VIDEO_RENDER_VIEWS:
                 uuid = config.TASK_CONFIG.SIMULATOR[render_view].UUID
@@ -925,7 +932,7 @@ class PPOTrainer(BaseRLTrainer):
                 config.SENSORS.append(render_view)
             config.freeze()
 
-        if config.VERBOSE:
+        if config.VERBOSE:  # False
             logger.info(f"env config: {config}")
 
         self._init_envs(config)
@@ -933,7 +940,7 @@ class PPOTrainer(BaseRLTrainer):
         action_space = self.envs.action_spaces[0]
         self.policy_action_space = action_space
         self.orig_policy_action_space = self.envs.orig_action_spaces[0]
-        if is_continuous_action_space(action_space):
+        if is_continuous_action_space(action_space):  # True
             # Assume NONE of the actions are discrete
             action_shape = (get_num_actions(action_space),)
             discrete_actions = False
@@ -944,10 +951,17 @@ class PPOTrainer(BaseRLTrainer):
 
         self._setup_actor_critic_agent(ppo_cfg)
 
-        if self.agent.actor_critic.should_load_agent_state:
+        if self.agent.actor_critic.should_load_agent_state:  # TODO Hierarchical为False PointNavPolicy为True 这里为验证subskill我注释掉了
             self.agent.load_state_dict(ckpt_dict["state_dict"])
         self.actor_critic = self.agent.actor_critic
-
+        # # TODO 新加的,用于验证subskills
+        # if len(ckpt_dict) > 0:  # 在这里加载预训练模型
+        #     self.actor_critic.load_state_dict(
+        #             {  # type: ignore
+        #                 k[len("actor_critic.") :]: v
+        #                 for k, v in ckpt_dict["state_dict"].items()
+        #             }
+        #         )
         observations = self.envs.reset()
         batch = batch_obs(
             observations, device=self.device, cache=self._obs_batching_cache
@@ -983,12 +997,12 @@ class PPOTrainer(BaseRLTrainer):
         rgb_frames = [
             [] for _ in range(self.config.NUM_ENVIRONMENTS)
         ]  # type: List[List[np.ndarray]]
-        if len(self.config.VIDEO_OPTION) > 0:
-            os.makedirs(self.config.VIDEO_DIR, exist_ok=True)
+        if len(self.config.VIDEO_OPTION) > 0:  # ["disk"]
+            os.makedirs(self.config.VIDEO_DIR, exist_ok=True)  # "video_dir"
 
-        number_of_eval_episodes = self.config.TEST_EPISODE_COUNT
-        if number_of_eval_episodes == -1:
-            number_of_eval_episodes = sum(self.envs.number_of_episodes)
+        number_of_eval_episodes = self.config.TEST_EPISODE_COUNT  # 默认是-1
+        if number_of_eval_episodes == -1:  # True
+            number_of_eval_episodes = sum(self.envs.number_of_episodes)  # mini_val: 20
         else:
             total_num_eps = sum(self.envs.number_of_episodes)
             # if total_num_eps is negative, it means the number of evaluation episodes is unknown
@@ -998,7 +1012,7 @@ class PPOTrainer(BaseRLTrainer):
                     ", dataset only has {total_num_eps}."
                 )
                 logger.warn(f"Evaluating with {total_num_eps} instead.")
-                number_of_eval_episodes = total_num_eps
+                number_of_eval_episodes = total_num_eps  # 只使用dataset中的episodes
         assert (
             number_of_eval_episodes > 1
         ), "The number TEST_EPISODE_COUNT needs to be strictly positive."
@@ -1029,7 +1043,7 @@ class PPOTrainer(BaseRLTrainer):
             # NB: Move actions to CPU.  If CUDA tensors are
             # sent in to env.step(), that will create CUDA contexts
             # in the subprocesses.
-            if is_continuous_action_space(self.policy_action_space):
+            if is_continuous_action_space(self.policy_action_space):  # True
                 # Clipping actions to the specified limits
                 step_data = [
                     np.clip(
@@ -1074,12 +1088,12 @@ class PPOTrainer(BaseRLTrainer):
                 ) in stats_episodes:
                     envs_to_pause.append(i)
 
-                if len(self.config.VIDEO_OPTION) > 0:
+                if len(self.config.VIDEO_OPTION) > 0:  # ['disk']
                     # TODO move normalization / channel changing out of the policy and undo it here
                     frame = observations_to_image(
                         {k: v[i] for k, v in batch.items()}, infos[i]
                     )
-                    if self.config.VIDEO_RENDER_ALL_INFO:
+                    if self.config.VIDEO_RENDER_ALL_INFO:  # True
                         frame = overlay_frame(frame, infos[i])
                     rgb_frames[i].append(frame)
 
@@ -1101,23 +1115,23 @@ class PPOTrainer(BaseRLTrainer):
                         )
                     ] = episode_stats
 
-                    if len(self.config.VIDEO_OPTION) > 0:
+                    if len(self.config.VIDEO_OPTION) > 0:  # ["disk"]
                         generate_video(
-                            video_option=self.config.VIDEO_OPTION,
-                            video_dir=self.config.VIDEO_DIR,
+                            video_option=self.config.VIDEO_OPTION,  # ['disk']
+                            video_dir=self.config.VIDEO_DIR,  # 'vedio_dir'
                             images=rgb_frames[i],
-                            episode_id=current_episodes[i].episode_id,
-                            checkpoint_idx=checkpoint_index,
+                            episode_id=current_episodes[i].episode_id,  
+                            checkpoint_idx=checkpoint_index,  # 0
                             metrics=self._extract_scalars_from_info(infos[i]),
-                            fps=self.config.VIDEO_FPS,
+                            fps=self.config.VIDEO_FPS,  # 30
                             tb_writer=writer,
-                            keys_to_include_in_name=self.config.EVAL_KEYS_TO_INCLUDE_IN_NAME,
+                            keys_to_include_in_name=self.config.EVAL_KEYS_TO_INCLUDE_IN_NAME,  # ['reward', 'force', 'composite_success']
                         )
 
                         rgb_frames[i] = []
 
                     gfx_str = infos[i].get(GfxReplayMeasure.cls_uuid, "")
-                    if gfx_str != "":
+                    if gfx_str != "":  # False
                         write_gfx_replay(
                             gfx_str,
                             self.config.TASK_CONFIG.TASK,

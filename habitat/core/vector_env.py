@@ -175,13 +175,13 @@ class VectorEnv:
             env_fn_args is not None and len(env_fn_args) > 0
         ), "number of environments to be created should be greater than 0"
 
-        self._num_envs = len(env_fn_args)
+        self._num_envs = len(env_fn_args)  # 32
 
         assert multiprocessing_start_method in self._valid_start_methods, (
             "multiprocessing_start_method must be one of {}. Got '{}'"
         ).format(self._valid_start_methods, multiprocessing_start_method)
-        self._auto_reset_done = auto_reset_done
-        self._mp_ctx = mp.get_context(multiprocessing_start_method)
+        self._auto_reset_done = auto_reset_done  # True
+        self._mp_ctx = mp.get_context(multiprocessing_start_method)  # 'forkserver'
         self._workers = []
         (
             self._connection_read_fns,
@@ -397,7 +397,7 @@ class VectorEnv:
     def async_step_at(
         self, index_env: int, action: Union[int, np.ndarray]
     ) -> None:
-        self._warn_cuda_tensors(action)
+        self._warn_cuda_tensors(action)  # 如果action是tensor且在cuda上, 则发出警告, 最好在cpu上且是numpy
         self._connection_write_fns[index_env]((STEP_COMMAND, action))
 
     @profiling_wrapper.RangeContext("wait_step_at")
@@ -567,9 +567,9 @@ class VectorEnv:
         action: Union[int, np.ndarray, Dict[str, Any]],
         prefix: Optional[str] = None,
     ):
-        if torch is None:
+        if torch is None:  # False
             return
-        if isinstance(action, dict):
+        if isinstance(action, dict):  # False
             for k, v in action.items():
                 subk = f"{prefix}.{k}" if prefix is not None else k
                 self._warn_cuda_tensors(v, prefix=subk)

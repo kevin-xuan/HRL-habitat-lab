@@ -23,13 +23,13 @@ except ImportError:
 
 def configure(capture_start_step=-1, num_steps_to_capture=-1):
     r"""Wrapper for habitat_sim profiling_utils.configure"""
-    if profiling_utils:
+    if profiling_utils:  # True
         profiling_utils.configure(capture_start_step, num_steps_to_capture)
 
 
 def on_start_step():
     r"""Wrapper for habitat_sim profiling_utils.on_start_step"""
-    if profiling_utils:
+    if profiling_utils:  # True
         profiling_utils.on_start_step()
 
 

@@ -19,7 +19,7 @@ CONFIG_FILE_SEPARATOR = ","
 # -----------------------------------------------------------------------------
 _C = CN()
 # task config can be a list of conifgs like "A.yaml,B.yaml"
-_C.BASE_TASK_CONFIG_PATH = "configs/tasks/pointnav.yaml"
+_C.BASE_TASK_CONFIG_PATH = "configs/tasks/pointnav.yaml" 
 _C.TASK_CONFIG = CN()  # task_config will be stored as a config node
 _C.CMD_TRAILING_OPTS = []  # store command line options as list of strings
 _C.TRAINER_NAME = "ppo"
@@ -65,7 +65,7 @@ _C.WB = CN()
 # The name of the project on W&B.
 _C.WB.PROJECT_NAME = ""
 # Logging entity (like your username or team name)
-_C.WB.ENTITY = ""
+_C.WB.ENTITY = "UESTC_529"
 # The group ID to assign to the run. Optional to specify.
 _C.WB.GROUP = ""
 # The run name to assign to the run. If not specified, W&B will randomly assign a name.
@@ -101,6 +101,7 @@ _C.RL.preemption.save_state_batch_only = False
 _C.RL.POLICY = CN()
 _C.RL.POLICY.name = "PointNavResNetPolicy"
 _C.RL.POLICY.action_distribution_type = "categorical"  # or 'gaussian'
+_C.RL.POLICY.order_keys = False
 # If the list is empty, all keys will be included.
 # For gaussian action distribution:
 _C.RL.POLICY.ACTION_DIST = CN()
@@ -242,8 +243,8 @@ def get_config(
     """
     config = _C.clone()
     if config_paths:
-        if isinstance(config_paths, str):
-            if CONFIG_FILE_SEPARATOR in config_paths:
+        if isinstance(config_paths, str):  # True
+            if CONFIG_FILE_SEPARATOR in config_paths:  # False
                 config_paths = config_paths.split(CONFIG_FILE_SEPARATOR)
             else:
                 config_paths = [config_paths]
@@ -251,11 +252,11 @@ def get_config(
         for config_path in config_paths:
             config.merge_from_file(config_path)
 
-    if opts:
+    if opts:  # False 当用sh脚本时opts不为空
         for k, v in zip(opts[0::2], opts[1::2]):
             if k == "BASE_TASK_CONFIG_PATH":
                 config.BASE_TASK_CONFIG_PATH = v
-
+    # config.BASE_TASK_CONFIG_PATH = "../habitat-challenge/configs/tasks/rearrange_easy.local.rgbd.yaml"  # TODO新加的 habital-lab使用而challenge不用
     config.TASK_CONFIG = get_task_config(config.BASE_TASK_CONFIG_PATH)
 
     # In case the config specifies overrides for the TASK_CONFIG, we
@@ -264,11 +265,11 @@ def get_config(
         for config_path in config_paths:
             config.merge_from_file(config_path)
 
-    if opts:
+    if opts:  # False 当用sh脚本时opts不为空
         config.CMD_TRAILING_OPTS = config.CMD_TRAILING_OPTS + opts
         config.merge_from_list(config.CMD_TRAILING_OPTS)
 
-    if config.NUM_PROCESSES != -1:
+    if config.NUM_PROCESSES != -1:  # False
         warnings.warn(
             "NUM_PROCESSES is depricated and will be removed in a future version."
             "  Use NUM_ENVIRONMENTS instead."
@@ -276,6 +277,17 @@ def get_config(
         )
 
         config.NUM_ENVIRONMENTS = config.NUM_PROCESSES
-
-    config.freeze()
+    # TODO 新加的 在habitat-lab下使用,在habitat-challenge下不用
+    # config.defrost()
+    # config.BASE_TASK_CONFIG_PATH = "../habitat-challenge/configs/tasks/rearrange_easy.local.rgbd.yaml" 
+    # config.TASK_CONFIG.DATASET.DATA_PATH = "../habitat-challenge/data/datasets/replica_cad/rearrange/v1/{split}/rearrange_easy.json.gz"
+    # config.TASK_CONFIG.DATASET.SCENES_DIR = "../habitat-challenge/data/replica_cad/"
+    # config.EVAL.SPLIT = 'val'  # minival val
+    # config.TASK_CONFIG.DATASET.SPLIT = 'train'
+    # config.TASK_CONFIG.TASK.TASK_SPEC_BASE_PATH = "../habitat-challenge/configs/pddl/"
+    # config.TASK_CONFIG.SIMULATOR.DEBUG_RENDER = True
+    # config.TENSORBOARD_DIR = './pick_tb/'
+    # config.CHECKPOINT_FOLDER = './pick_checkpoints/' 
+    # config.LOG_FILE = './pick_train.log'
+    # config.freeze()
     return config

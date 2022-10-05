@@ -63,22 +63,22 @@ class PPO(nn.Module):
         advantages = (
             rollouts.buffers["returns"][:-1]  # type: ignore
             - rollouts.buffers["value_preds"][:-1]
-        )
-        if not self.use_normalized_advantage:
+        )  # (128, 32, 1)
+        if not self.use_normalized_advantage:  # True
             return advantages
 
         return (advantages - advantages.mean()) / (advantages.std() + EPS_PPO)
 
     def update(self, rollouts: RolloutStorage) -> Tuple[float, float, float]:
-        advantages = self.get_advantages(rollouts)
+        advantages = self.get_advantages(rollouts)  # (128, 32, 1)
 
         value_loss_epoch = 0.0
         action_loss_epoch = 0.0
         dist_entropy_epoch = 0.0
 
-        for _e in range(self.ppo_epoch):
+        for _e in range(self.ppo_epoch):  # 2
             profiling_wrapper.range_push("PPO.update epoch")
-            data_generator = rollouts.recurrent_generator(
+            data_generator = rollouts.recurrent_generator(  # 将32个环境分成2个batch
                 advantages, self.num_mini_batch
             )
 
@@ -96,7 +96,7 @@ class PPO(nn.Module):
                     batch["actions"],
                 )
 
-                ratio = torch.exp(action_log_probs - batch["action_log_probs"])
+                ratio = torch.exp(action_log_probs - batch["action_log_probs"])  # ppo 公式第一部分
                 surr1 = ratio * batch["advantages"]
                 surr2 = (
                     torch.clamp(
@@ -106,10 +106,10 @@ class PPO(nn.Module):
                 )
                 action_loss = -(torch.min(surr1, surr2).mean())
 
-                if self.use_clipped_value_loss:
+                if self.use_clipped_value_loss:  # True
                     value_pred_clipped = batch["value_preds"] + (
                         values - batch["value_preds"]
-                    ).clamp(-self.clip_param, self.clip_param)
+                    ).clamp(-self.clip_param, self.clip_param)  # 0.2
                     value_losses = (values - batch["returns"]).pow(2)
                     value_losses_clipped = (
                         value_pred_clipped - batch["returns"]
@@ -130,13 +130,13 @@ class PPO(nn.Module):
                     - dist_entropy * self.entropy_coef
                 )
 
-                self.before_backward(total_loss)
+                self.before_backward(total_loss)  # 没用
                 total_loss.backward()
-                self.after_backward(total_loss)
+                self.after_backward(total_loss)  # 没用
 
-                self.before_step()
+                self.before_step()  # 梯度裁剪
                 self.optimizer.step()
-                self.after_step()
+                self.after_step()  # 没用
 
                 value_loss_epoch += value_loss.item()
                 action_loss_epoch += action_loss.item()
@@ -144,7 +144,7 @@ class PPO(nn.Module):
 
             profiling_wrapper.range_pop()  # PPO.update epoch
 
-        num_updates = self.ppo_epoch * self.num_mini_batch
+        num_updates = self.ppo_epoch * self.num_mini_batch  # 2 * 2
 
         value_loss_epoch /= num_updates
         action_loss_epoch /= num_updates

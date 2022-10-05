@@ -94,23 +94,23 @@ class TensorDict(Dict[str, Union["TensorDict", torch.Tensor]]):
         value: Union[torch.Tensor, "TensorDict", DictTree, TensorLike],
         strict: bool = True,
     ) -> None:
-        if isinstance(index, str):
+        if isinstance(index, str):  # False
             super().__setitem__(index, value)  # type: ignore
         else:
-            if not isinstance(value, dict):
+            if not isinstance(value, dict):  # False
                 raise RuntimeError(
                     "Set with indexing requires that the value is a dict"
                 )
-            if strict and (self.keys() != value.keys()):
+            if strict and (self.keys() != value.keys()):  # False
                 raise KeyError(
                     "Keys don't match: Dest={} Source={}".format(
                         self.keys(), value.keys()
                     )
                 )
 
-            for k in self.keys():
+            for k in self.keys():  # dict_keys(['observations', 'recurrent_hidden_states', 'rewards', 'value_preds', 'returns', 'action_log_probs', 'actions', 'prev_actions', 'masks'])
                 if k not in value:
-                    if strict:
+                    if strict:  # False
                         raise KeyError(f"Key {k} not in new value dictionary")
                     else:
                         continue
@@ -118,7 +118,7 @@ class TensorDict(Dict[str, Union["TensorDict", torch.Tensor]]):
                 v = value[k]
                 tgt = self[k]
 
-                if isinstance(v, (TensorDict, dict)):
+                if isinstance(v, (TensorDict, dict)):  # Tensor False
                     assert isinstance(tgt, TensorDict)
                     tgt.set(index, v, strict=strict)
                 else:

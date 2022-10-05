@@ -12,7 +12,6 @@ import torch
 
 from habitat_baselines.common.tensor_dict import TensorDict
 
-
 class RolloutStorage:
     r"""Class for storing rollout information for RL trainers."""
 
@@ -67,7 +66,7 @@ class RolloutStorage:
         self.buffers["prev_actions"] = torch.zeros(
             numsteps + 1, num_envs, *action_shape
         )
-        if discrete_actions:
+        if discrete_actions:  # False
 
             assert isinstance(self.buffers["actions"], torch.Tensor)
             assert isinstance(self.buffers["prev_actions"], torch.Tensor)
@@ -78,14 +77,14 @@ class RolloutStorage:
             numsteps + 1, num_envs, 1, dtype=torch.bool
         )
 
-        self.is_double_buffered = is_double_buffered
-        self._nbuffers = 2 if is_double_buffered else 1
-        self._num_envs = num_envs
+        self.is_double_buffered = is_double_buffered  # False
+        self._nbuffers = 2 if is_double_buffered else 1  # 1
+        self._num_envs = num_envs  # 32
 
         assert (self._num_envs % self._nbuffers) == 0
 
-        self.numsteps = numsteps
-        self.current_rollout_step_idxs = [0 for _ in range(self._nbuffers)]
+        self.numsteps = numsteps  # 128
+        self.current_rollout_step_idxs = [0 for _ in range(self._nbuffers)]  # [0]
 
     @property
     def current_rollout_step_idx(self) -> int:
@@ -109,7 +108,7 @@ class RolloutStorage:
         next_masks=None,
         buffer_index: int = 0,
     ):
-        if not self.is_double_buffered:
+        if not self.is_double_buffered:  # True
             assert buffer_index == 0
 
         next_step = dict(
@@ -126,21 +125,21 @@ class RolloutStorage:
             rewards=rewards,
         )
 
-        next_step = {k: v for k, v in next_step.items() if v is not None}
-        current_step = {k: v for k, v in current_step.items() if v is not None}
+        next_step = {k: v for k, v in next_step.items() if v is not None}  # hidden_state & prev_actions
+        current_step = {k: v for k, v in current_step.items() if v is not None}  # prev_actions, action_log_probs, value
 
         env_slice = slice(
             int(buffer_index * self._num_envs / self._nbuffers),
             int((buffer_index + 1) * self._num_envs / self._nbuffers),
         )
 
+        # 将rnn每个timestep(single forward)的输出存放起来
         if len(next_step) > 0:
             self.buffers.set(
                 (self.current_rollout_step_idxs[buffer_index] + 1, env_slice),
                 next_step,
                 strict=False,
-            )
-
+            )  
         if len(current_step) > 0:
             self.buffers.set(
                 (self.current_rollout_step_idxs[buffer_index], env_slice),
@@ -152,14 +151,14 @@ class RolloutStorage:
         self.current_rollout_step_idxs[buffer_index] += 1
 
     def after_update(self):
-        self.buffers[0] = self.buffers[self.current_rollout_step_idx]
+        self.buffers[0] = self.buffers[self.current_rollout_step_idx]  # rollout的第一步结果等于前一次rollout最后步的结果
 
         self.current_rollout_step_idxs = [
             0 for _ in self.current_rollout_step_idxs
         ]
 
     def compute_returns(self, next_value, use_gae, gamma, tau):
-        if use_gae:
+        if use_gae:  # True
             assert isinstance(self.buffers["value_preds"], torch.Tensor)
             self.buffers["value_preds"][
                 self.current_rollout_step_idx
@@ -172,10 +171,10 @@ class RolloutStorage:
                     * self.buffers["value_preds"][step + 1]
                     * self.buffers["masks"][step + 1]
                     - self.buffers["value_preds"][step]
-                )
+                )  # (32, 1)
                 gae = (
                     delta + gamma * tau * gae * self.buffers["masks"][step + 1]
-                )
+                )  # 它这里gae=0.0,不是相当于没用吗?
                 self.buffers["returns"][step] = (  # type: ignore
                     gae + self.buffers["value_preds"][step]  # type: ignore
                 )
@@ -192,7 +191,7 @@ class RolloutStorage:
     def recurrent_generator(
         self, advantages, num_mini_batch
     ) -> Iterator[TensorDict]:
-        num_environments = advantages.size(1)
+        num_environments = advantages.size(1)  # (128, 32, 1)
         assert num_environments >= num_mini_batch, (
             "Trainer requires the number of environments ({}) "
             "to be greater than or equal to the number of "
@@ -208,13 +207,13 @@ class RolloutStorage:
                     num_environments, num_mini_batch
                 )
             )
-        for inds in torch.randperm(num_environments).chunk(num_mini_batch):
+        for inds in torch.randperm(num_environments).chunk(num_mini_batch):  # 随机返回0~31个数,且分成2个块
             batch = self.buffers[0 : self.current_rollout_step_idx, inds]
             batch["advantages"] = advantages[
                 0 : self.current_rollout_step_idx, inds
-            ]
+            ]  # (128, num_env//2, 1)
             batch["recurrent_hidden_states"] = batch[
                 "recurrent_hidden_states"
-            ][0:1]
+            ][0:1]  # (128, num_env//2, 4, 512) 取第一个hidden_state
 
-            yield batch.map(lambda v: v.flatten(0, 1))
+            yield batch.map(lambda v: v.flatten(0, 1))  

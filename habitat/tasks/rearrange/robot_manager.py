@@ -45,8 +45,8 @@ class RobotManager:
     def __init__(self, cfg, sim):
         self._sim = sim
         self._all_robot_data = []
-        self._is_pb_installed = is_pb_installed()
-        self.agent_names = cfg.AGENTS
+        self._is_pb_installed = is_pb_installed()  # False
+        self.agent_names = cfg.AGENTS  # ['AGENT_0']
 
         for agent_name in cfg.AGENTS:
             agent_cfg = cfg[agent_name]
@@ -54,7 +54,7 @@ class RobotManager:
             robot = robot_cls(agent_cfg.ROBOT_URDF, sim)
             grasp_mgr = RearrangeGraspManager(sim, cfg, robot)
 
-            if len(cfg.AGENTS) > 1:
+            if len(cfg.AGENTS) > 1:  # False
                 # Prefix sensors if there is more than 1 agent in the scene.
                 robot.params.cameras = {
                     f"{agent_name}_{k}": v

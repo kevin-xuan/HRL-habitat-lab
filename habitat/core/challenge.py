@@ -11,8 +11,9 @@ from habitat.core.logging import logger
 
 
 class Challenge(Benchmark):
-    def __init__(self, eval_remote=False):
-        config_paths = os.environ["CHALLENGE_CONFIG_FILE"]
+    def __init__(self, eval_remote=False, args=None):
+        # config_paths = os.environ["CHALLENGE_CONFIG_FILE"]  # 命令行形式
+        config_paths = args.challenge_config_file  # debug
         super().__init__(config_paths, eval_remote=eval_remote)
 
     def submit(self, agent):

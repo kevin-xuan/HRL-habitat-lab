@@ -22,10 +22,10 @@ class CompositeTask(RearrangeTask):
     def __init__(self, *args, config, dataset=None, **kwargs):
         task_spec_path = osp.join(
             config.TASK_SPEC_BASE_PATH, config.TASK_SPEC + ".yaml"
-        )
+        )  # 'configs/pddl/rearrange_easy.yaml'
 
         self.pddl_problem = PddlProblem(
-            config.PDDL_DOMAIN_DEF,
+            config.PDDL_DOMAIN_DEF,  # 'replica_cad'
             task_spec_path,
             config,
         )

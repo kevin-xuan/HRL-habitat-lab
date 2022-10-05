@@ -46,7 +46,7 @@ class ActionSpace(gym.spaces.Dict):
     """
 
     def __init__(self, spaces: Union[List, Dict]):
-        if isinstance(spaces, dict):
+        if isinstance(spaces, dict):  # True
             self.spaces = OrderedDict(sorted(spaces.items()))
         if isinstance(spaces, list):
             self.spaces = OrderedDict(spaces)

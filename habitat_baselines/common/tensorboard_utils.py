@@ -18,7 +18,7 @@ except ImportError:
 
 
 def get_writer(config, **kwargs):
-    if config.WRITER_TYPE == "tb":
+    if config.WRITER_TYPE == "tb":  # True
         return TensorboardWriter(config.TENSORBOARD_DIR, **kwargs)
     elif config.WRITER_TYPE == "wb":
         return WeightsAndBiasesWriter(config)

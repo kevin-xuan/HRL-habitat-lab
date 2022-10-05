@@ -51,9 +51,9 @@ class RearrangeDatasetV0(PointNavDatasetV1):
         return result
 
     def __init__(self, config: Optional[Config] = None) -> None:
-        self.config = config
+        self.config = config 
 
-        if config and not self.check_config_paths_exist(config):
+        if config and not self.check_config_paths_exist(config):  # False
             logger.info(
                 "Rearrange task assets are not downloaded locally, downloading and extracting now..."
             )
@@ -72,7 +72,7 @@ class RearrangeDatasetV0(PointNavDatasetV1):
         deserialized = json.loads(json_str)
 
         for i, episode in enumerate(deserialized["episodes"]):
-            rearrangement_episode = RearrangeEpisode(**episode)
+            rearrangement_episode = RearrangeEpisode(**episode)  # 把dict形式的episode变成class的episode
             rearrangement_episode.episode_id = str(i)
 
             self.episodes.append(rearrangement_episode)
