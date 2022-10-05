@@ -2,7 +2,7 @@
 
 export MAGNUM_LOG=quiet
 export HABITAT_SIM_LOG=quiet
-# aaa
+
 set -x
 python habitat_baselines/run.py \
     --exp-config ../habitat-challenge/configs/methods/ddppo_monolithic.yaml \
