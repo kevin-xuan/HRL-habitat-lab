@@ -12,12 +12,12 @@ VIDEO_RENDER_VIEWS:
   - "THIRD_RGB_SENSOR"
 TEST_EPISODE_COUNT: -1
 EVAL_CKPT_PATH_DIR: "data/new_checkpoints"
-NUM_ENVIRONMENTS: 32
+NUM_ENVIRONMENTS: 8
 # Visual sensors to include
 SENSORS: ["HEAD_DEPTH_SENSOR", "HEAD_RGB_SENSOR"]
 CHECKPOINT_FOLDER: "data/new_checkpoints"
 NUM_UPDATES: -1
-TOTAL_NUM_STEPS: 1.0e8
+TOTAL_NUM_STEPS: 1e8
 LOG_INTERVAL: 10
 NUM_CHECKPOINTS: 20
 # Force PyTorch to be single threaded as
@@ -25,8 +25,7 @@ NUM_CHECKPOINTS: 20
 FORCE_TORCH_SINGLE_THREADED: True
 EVAL_KEYS_TO_INCLUDE_IN_NAME: ["reward", "force", "success"]
 
-BASE_TASK_CONFIG_PATH: configs/tasks/rearrange/nav_to_obj.yaml
-
+BASE_TASK_CONFIG_PATH: configs/tasks/rearrange/place.yaml
 RL:
   POLICY:
     name: "PointNavResNetPolicy"

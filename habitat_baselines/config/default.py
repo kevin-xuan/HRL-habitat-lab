@@ -6,6 +6,7 @@
 
 import warnings
 from typing import List, Optional, Union
+from habitat_baselines.rl.ddppo.policy.resnet import resnet18
 
 import numpy as np
 
@@ -46,6 +47,7 @@ _C.CHECKPOINT_INTERVAL = -1
 _C.TOTAL_NUM_STEPS = -1.0
 _C.LOG_INTERVAL = 10
 _C.LOG_FILE = "train.log"
+_C.RGB_ENCODER = "resnet18"
 _C.FORCE_BLIND_POLICY = False
 _C.VERBOSE = True
 _C.EVAL_KEYS_TO_INCLUDE_IN_NAME = []

@@ -94,7 +94,8 @@ class PPOTrainer(BaseRLTrainer):
 
         # Distributed if the world size would be
         # greater than 1
-        self._is_distributed = get_distrib_size()[2] > 1
+        # self._is_distributed = get_distrib_size()[2] > 1
+        self._is_distributed = False
         self._obs_batching_cache = ObservationBatchingCache()
 
     @property
