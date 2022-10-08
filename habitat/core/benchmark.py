@@ -139,7 +139,7 @@ class Benchmark:
             observations = self._env.reset()
             agent.reset()
 
-            while not self._env.episode_over:
+            while not self._env.episode_over:  # 超出了限制或者完成了episode才会变成True
                 action = agent.act(observations)  # PPOAgent
                 observations = self._env.step(action)
 

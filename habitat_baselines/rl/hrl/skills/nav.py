@@ -50,7 +50,7 @@ class NavSkillPolicy(NnSkillPolicy):
             ret_obs[TargetOrGoalStartPointGoalSensor.cls_uuid] = observations[
                 replace_sensor
             ]
-        return ret_obs
+        return ret_obs  # 判断nav到物体初始位置,即pick,还是说nav到物体目的位置,即place
 
     def _get_multi_sensor_index(self, batch_idx: int, sensor_name: str) -> int:
         return self._cur_skill_args[batch_idx].obj_idx
@@ -77,7 +77,7 @@ class NavSkillPolicy(NnSkillPolicy):
         return should_stop
 
     def _parse_skill_arg(self, skill_arg):
-        targ_name, targ_idx = skill_arg[-2].split("|")
+        targ_name, targ_idx = skill_arg[-2].split("|")  # goal0 0
         return NavSkillPolicy.NavArgs(
             obj_idx=int(targ_idx), is_target=targ_name.startswith("TARGET")
         )

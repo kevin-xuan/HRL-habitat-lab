@@ -24,7 +24,7 @@ class SkillPolicy(Policy):
         self._batch_size = batch_size  # 1
 
         self._cur_skill_step = torch.zeros(self._batch_size)
-        self._should_keep_hold_state = should_keep_hold_state  # False 在waitskill和resetArm下为True
+        self._should_keep_hold_state = should_keep_hold_state  # False arm在navskill, waitskill和resetArm下为True
 
         self._cur_skill_args: List[Any] = [
             None for _ in range(self._batch_size)
@@ -154,16 +154,16 @@ class SkillPolicy(Policy):
         :returns: Predicted action and next rnn hidden state.
         """
         self._cur_skill_step[cur_batch_idx] += 1
-        action, hxs = self._internal_act(
+        action, hxs = self._internal_act(  # 返回action和hidden_state
             observations,
             rnn_hidden_states,
             prev_actions,
             masks,
             cur_batch_idx,
-            deterministic,
+            deterministic,  # False
         )
 
-        if self._should_keep_hold_state:
+        if self._should_keep_hold_state:  # 如果True,那么gripper的状态要保持不变,即-1代表not holding,而1代表holding
             action = self._keep_holding_state(action, observations)
         return action, hxs
 
@@ -177,15 +177,15 @@ class SkillPolicy(Policy):
         for k in self._config.OBS_SKILL_INPUTS:
             cur_multi_sensor_index = self._get_multi_sensor_index(
                 cur_batch_idx, k
-            )
+            )  # 0
             if k not in obs:
                 raise ValueError(
                     f"Skill {self._config.skill_name}: Could not find {k} out of {obs.keys()}"
                 )
             entity_positions = obs[k].view(
                 1, -1, self._config.get("OBS_SKILL_INPUT_DIM", 3)
-            )
-            obs[k] = entity_positions[:, cur_multi_sensor_index]
+            )  # (1, 2) -> (1, 1, 2)
+            obs[k] = entity_positions[:, cur_multi_sensor_index]  # (1, 2) 感觉这两步没啥意义
         return obs
 
     def _is_skill_done(

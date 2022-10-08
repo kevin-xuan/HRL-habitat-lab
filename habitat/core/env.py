@@ -238,7 +238,7 @@ class Env:
         if (
             self._episode_iterator is not None
             and self._episode_from_iter_on_reset
-        ):  # False
+        ):  # False 如果为True则意味着要切换下一个episode
             self._current_episode = next(self._episode_iterator)
 
         # This is always set to true after a reset that way

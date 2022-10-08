@@ -44,17 +44,17 @@ class HierarchicalPolicy(Policy):
         # Maps (skill idx -> skill)
         self._skills: Dict[int, SkillPolicy] = {}
         self._name_to_idx: Dict[str, int] = {}
-
+        # 定义每个skill所使用的config、observation、action
         for i, (skill_id, use_skill_name) in enumerate(
-            config.USE_SKILLS.items()
+            config.USE_SKILLS.items()  
         ):  # dict_items([('pick', 'NN_PICK'), ('place', 'NN_PLACE'), ('nav', 'NN_NAV'), ('nav_to_receptacle', 'NN_NAV'), ('wait', 'WAIT_SKILL'), ('reset_arm', 'RESET_ARM_SKILL')])
             if use_skill_name == "":
                 # Skip loading this skill if no name is provided
                 continue
-            skill_config = config.DEFINED_SKILLS[use_skill_name]
+            skill_config = config.DEFINED_SKILLS[use_skill_name]  # 包括使用了哪些sensor
 
             cls = eval(skill_config.skill_name)  # <class 'habitat_baselines.rl.hrl.skills.pick.PickSkillPolicy'>
-            skill_policy = cls.from_config(
+            skill_policy = cls.from_config(  # 加载pre-train skill
                 skill_config,
                 observation_space,
                 action_space,
@@ -66,7 +66,7 @@ class HierarchicalPolicy(Policy):
 
         self._call_high_level: torch.Tensor = torch.ones(
             self._num_envs, dtype=torch.bool
-        )
+        )  # 默认为True,为True时调用high-level policy选择next skill
         self._cur_skills: torch.Tensor = torch.zeros(self._num_envs)
 
         high_level_cls = eval(config.high_level_policy.name)  # 'GtHighLevelPolicy'
@@ -112,16 +112,16 @@ class HierarchicalPolicy(Policy):
         deterministic=False,
     ):
 
-        self._high_level_policy.apply_mask(masks)
+        self._high_level_policy.apply_mask(masks)  # 这里的mask是指not done mask, 如果next_sol为False时意味着需要切换next skill
         use_device = prev_actions.device
 
         batched_observations = [
             {k: v[batch_idx].unsqueeze(0) for k, v in observations.items()}
             for batch_idx in range(self._num_envs)
         ]
-        batched_rnn_hidden_states = rnn_hidden_states.unsqueeze(1)
-        batched_prev_actions = prev_actions.unsqueeze(1)
-        batched_masks = masks.unsqueeze(1)  # 表示episode是否结束 这里的mask是not done,意味着1代表未完成episode而0则完成
+        batched_rnn_hidden_states = rnn_hidden_states.unsqueeze(1)  # (1, 1, 4, 512)
+        batched_prev_actions = prev_actions.unsqueeze(1)  # (1, 1, 11)
+        batched_masks = masks.unsqueeze(1)  # 表示episode是否结束 这里的mask是not done,意味着1代表未完成episode而0则完成 (1, 1, 1)
 
         batched_bad_should_terminate = torch.zeros(
             self._num_envs, device=use_device, dtype=torch.bool
@@ -129,7 +129,7 @@ class HierarchicalPolicy(Policy):
 
         # Check if skills should terminate.
         for batch_idx, skill_idx in enumerate(self._cur_skills):
-            if masks[batch_idx] == 0.0:  # episode未完成=0意味着已经完成一个skill
+            if masks[batch_idx] == 0.0:  # episode未完成=0意味着已经完成一个skill,那么就不需要判断是否应该结束该skill而是直接使用next skill
                 # Don't check if the skill is done if the episode ended.
                 continue
             should_terminate, bad_should_terminate = self._skills[
@@ -151,11 +151,11 @@ class HierarchicalPolicy(Policy):
         hl_terminate = torch.zeros(
             self._num_envs, device=use_device, dtype=torch.bool
         )
-        if self._call_high_level.sum() > 0:
+        if self._call_high_level.sum() > 0:  # True则调用next skill
             (
                 new_skills,
                 new_skill_args,
-                hl_terminate,
+                hl_terminate,  # 表明是否强制agent使用wait skill
             ) = self._high_level_policy.get_next_skill(
                 observations,
                 rnn_hidden_states,
@@ -168,7 +168,7 @@ class HierarchicalPolicy(Policy):
                 skill_idx = new_skills[new_skill_batch_idx.item()]
 
                 skill = self._skills[skill_idx.item()]
-                # 对于新的skill重置hidden_state和prev_action
+                # 对于新的skill重置hidden_state和prev_action, 确定skil_args,即参数
                 (
                     batched_rnn_hidden_states[new_skill_batch_idx],
                     batched_prev_actions[new_skill_batch_idx],
@@ -225,9 +225,9 @@ class HierarchicalPolicy(Policy):
         **kwargs,
     ):
         return cls(
-            config.RL.POLICY,
+            config.RL.POLICY,  # HierarchicalPolicy
             config,
             observation_space,
             orig_action_space,
-            config.NUM_ENVIRONMENTS,
+            config.NUM_ENVIRONMENTS,  # 1
         )

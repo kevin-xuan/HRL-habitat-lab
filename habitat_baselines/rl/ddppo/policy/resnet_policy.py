@@ -35,11 +35,11 @@ from habitat_baselines.rl.models.rnn_state_encoder import (
 from habitat_baselines.rl.ppo import Net, NetPolicy
 from habitat_baselines.utils.common import get_num_actions
 # from scripts.test_r3m  import load_r3m
-from r3m import load_r3m
-from vip import load_vip
-import clip
-from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize, InterpolationMode
-BICUBIC = InterpolationMode.BICUBIC
+# from r3m import load_r3m
+# from vip import load_vip
+# import clip
+# from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize, InterpolationMode
+# BICUBIC = InterpolationMode.BICUBIC
 
 @baseline_registry.register_policy
 class PointNavResNetPolicy(NetPolicy):
@@ -102,6 +102,7 @@ class PointNavResNetPolicy(NetPolicy):
         else:
             fuse_keys = None
         # print("from config: {}".format(config.RGB_ENCODER))
+        rgb_encoder = config.get('RGB_ENCODER', "")
         return cls(
             observation_space=observation_space,
             action_space=action_space,
@@ -113,7 +114,7 @@ class PointNavResNetPolicy(NetPolicy):
             force_blind_policy=config.FORCE_BLIND_POLICY,  # False
             policy_config=config.RL.POLICY,
             fuse_keys=fuse_keys,
-            rgb_encoder=config.RGB_ENCODER,
+            rgb_encoder=rgb_encoder,
         )
 
 
@@ -484,21 +485,22 @@ class PointNavResNetNet(Net):
                 "visual_features", self.visual_encoder(observations)  # Dict中没有"visual_features",直接调用self.visual_encoder
             )
             visual_feats = self.visual_fc(visual_feats)  # Flatten, Linear, ReLu (32, 512)
-            self.rgb_encoder.eval()
-            with torch.no_grad():
-                rgb_input = observations['robot_head_rgb'].permute(0, 3, 1, 2)  # (N, 3, H, W)
-                if self.image_transform is not None:
-                    rgb_input = self.image_transform(rgb_input) / 255.0  # 变相于ToTensor() [0, 1]
-                    if self.test_rgb != "clip":  # r3m和vip expects image input to be [0-255]
-                        rgb_input = rgb_input * 255.0
-                        rgb_visual_feats = self.rgb_encoder(rgb_input) # (N, 512)
-                    else:
-                        clip_norm = Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-                        rgb_input = clip_norm(rgb_input)
-                        rgb_visual_feats = self.rgb_encoder.encode_image(rgb_input) # (N, 512)
-                # rgb_visual_feats = self.rgb_encoder(rgb_input) # (N, 512)
-            visual_feats = torch.cat([visual_feats, rgb_visual_feats], dim=-1)
-            visual_feats = self.map_back(visual_feats)
+            if self.rgb_encoder is not None:
+                self.rgb_encoder.eval()
+                with torch.no_grad():
+                    rgb_input = observations['robot_head_rgb'].permute(0, 3, 1, 2)  # (N, 3, H, W)
+                    if self.image_transform is not None:
+                        rgb_input = self.image_transform(rgb_input) / 255.0  # 变相于ToTensor() [0, 1]
+                        if self.test_rgb != "clip":  # r3m和vip expects image input to be [0-255]
+                            rgb_input = rgb_input * 255.0
+                            rgb_visual_feats = self.rgb_encoder(rgb_input) # (N, 512)
+                        else:
+                            clip_norm = Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+                            rgb_input = clip_norm(rgb_input)
+                            rgb_visual_feats = self.rgb_encoder.encode_image(rgb_input) # (N, 512)
+                    # rgb_visual_feats = self.rgb_encoder(rgb_input) # (N, 512)
+                visual_feats = torch.cat([visual_feats, rgb_visual_feats], dim=-1)
+                visual_feats = self.map_back(visual_feats)
             x.append(visual_feats)
 
         if len(self._fuse_keys_1d) != 0:  # 将CNN输出与robot state拼接

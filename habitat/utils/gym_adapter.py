@@ -140,7 +140,7 @@ def continuous_vector_action_to_hab_dict(
 
     action_dict = {
         "action": root_action_names,  # ('ARM_ACTION', 'BASE_VELOCITY', 'REARRANGE_STOP')
-        "action_args": action_args,  # {'arm_action': tensor(7, ), 'grip_action': (1, ), 'based_vel': (2, ), 'REARRANGE_STOP': (1, )}
+        "action_args": action_args,  # {'arm_action': np(7, ), 'grip_action': (1, ), 'based_vel': (2, ), 'REARRANGE_STOP': (1, )}
     }
 
     return action_dict

@@ -61,7 +61,7 @@ class CompositeTask(RearrangeTask):
             self._sim, self._dataset, self, episode
         )
 
-        if self._cur_node_idx >= 0:
+        if self._cur_node_idx >= 0:  # False -1
             self.jump_to_node(self._cur_node_idx, episode)
 
         return self._get_observations(episode)

@@ -136,7 +136,7 @@ class RearrangeTask(NavigationTask):
         self.should_end = False
         self._done = False
         self._cur_episode_step = 0
-        if fetch_observations:
+        if fetch_observations:  # False
             return self._get_observations(episode)
         else:
             return None

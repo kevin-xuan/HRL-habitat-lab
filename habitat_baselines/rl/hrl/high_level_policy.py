@@ -31,19 +31,19 @@ class GtHighLevelPolicy:
             task_spec = yaml.safe_load(f)
 
         self._solution_actions = []
-        if "solution" not in task_spec:
+        if "solution" not in task_spec:  # 只有rearrange_easy才给定了解决task的solution
             raise ValueError(
                 f"The ground truth task planner only works when the task solution is hard-coded in the PDDL problem file at {task_spec_file}"
             )
         for i, sol_step in enumerate(task_spec["solution"]):
-            sol_action = parse_func(sol_step)  # 二元组,第一个为skill fcuntion,比如nav,第二个为skill的参数
+            sol_action = parse_func(sol_step)  # 二元组,第一个为skill fcuntion,比如nav,第二个为skill的参数, 比如机器人位置和物体位置
             self._solution_actions.append(sol_action)
             if i < (len(task_spec["solution"]) - 1):  # 3
                 self._solution_actions.append(parse_func("reset_arm(0)"))  # 除最后一个skill之外,每个skill后添加重置robot arm skill
         # Add a wait action at the end.
         self._solution_actions.append(parse_func("wait(30)"))  # 在最后添加wait skill
 
-        self._next_sol_idxs = torch.zeros(num_envs, dtype=torch.int32)
+        self._next_sol_idxs = torch.zeros(num_envs, dtype=torch.int32)  # 表明接下来使用的skill
         self._num_envs = num_envs
         self._skill_name_to_idx = skill_name_to_idx
 
@@ -52,17 +52,17 @@ class GtHighLevelPolicy:
 
     def get_next_skill(
         self, observations, rnn_hidden_states, prev_actions, masks, plan_masks
-    ):
+    ):  # plan_masks是指self._call_high_level,即是否使用high-level policy
         next_skill = torch.zeros(self._num_envs, device=prev_actions.device)
         skill_args_data = [None for _ in range(self._num_envs)]
         immediate_end = torch.zeros(
             self._num_envs, device=prev_actions.device, dtype=torch.bool
         )
-        for batch_idx, should_plan in enumerate(plan_masks):  # plan_masks指得是high_level_policy
+        for batch_idx, should_plan in enumerate(plan_masks):  # plan_masks是指self._call_high_level, 即是否使用high-level policy
             if should_plan == 1.0:
                 if self._next_sol_idxs[batch_idx] >= len(
                     self._solution_actions
-                ):
+                ):  # 如果next skill的索引超出阈值,则应该快速结束,重置next skill为最后一个skill:wait
                     baselines_logger.info(
                         f"Calling for immediate end with {self._next_sol_idxs[batch_idx]}"
                     )
@@ -83,6 +83,6 @@ class GtHighLevelPolicy:
 
                 skill_args_data[batch_idx] = skill_args
 
-                self._next_sol_idxs[batch_idx] += 1
+                self._next_sol_idxs[batch_idx] += 1  # 使用一个skill后,下一个正确的skil,即准确知道solution
 
         return next_skill, skill_args_data, immediate_end
