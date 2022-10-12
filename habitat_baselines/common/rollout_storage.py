@@ -48,7 +48,7 @@ class RolloutStorage:
             num_recurrent_layers,
             recurrent_hidden_state_size,
         )
-
+        
         self.buffers["rewards"] = torch.zeros(numsteps + 1, num_envs, 1)
         self.buffers["value_preds"] = torch.zeros(numsteps + 1, num_envs, 1)
         self.buffers["returns"] = torch.zeros(numsteps + 1, num_envs, 1)
@@ -66,8 +66,9 @@ class RolloutStorage:
         self.buffers["prev_actions"] = torch.zeros(
             numsteps + 1, num_envs, *action_shape
         )
-        if discrete_actions:  # False
-
+        
+        if discrete_actions:
+    
             assert isinstance(self.buffers["actions"], torch.Tensor)
             assert isinstance(self.buffers["prev_actions"], torch.Tensor)
             self.buffers["actions"] = self.buffers["actions"].long()

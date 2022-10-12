@@ -1246,6 +1246,7 @@ class AddVirtualKeys(ObservationTransformer):
                 high=np.finfo(np.float32).max,
                 dtype=np.float32,
             )
+            
         return observation_space
 
     @torch.no_grad()

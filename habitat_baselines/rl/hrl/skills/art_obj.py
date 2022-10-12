@@ -18,7 +18,7 @@ class ArtObjSkillPolicy(NnSkillPolicy):
         rnn_hidden_states,
         prev_actions,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        super().on_enter(
+        ret = super().on_enter(
             skill_arg, batch_idx, observations, rnn_hidden_states, prev_actions
         )
         self._did_leave_start_zone = torch.zeros(
@@ -27,6 +27,7 @@ class ArtObjSkillPolicy(NnSkillPolicy):
         self._episode_start_resting_pos = observations[
             RelativeRestingPositionSensor.cls_uuid
         ]
+        return ret
 
     def _is_skill_done(
         self,
@@ -34,6 +35,7 @@ class ArtObjSkillPolicy(NnSkillPolicy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> torch.BoolTensor:
 
         cur_resting_pos = observations[RelativeRestingPositionSensor.cls_uuid]
@@ -61,4 +63,6 @@ class ArtObjSkillPolicy(NnSkillPolicy):
 
     def _parse_skill_arg(self, skill_arg):
         self._internal_log(f"Parsing skill argument {skill_arg}")
-        return int(skill_arg[-1].split("|")[1])
+        if skill_arg is not None:
+            return int(skill_arg[-1].split("|")[1])
+        return skill_arg

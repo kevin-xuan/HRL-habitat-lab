@@ -14,6 +14,7 @@ class PickSkillPolicy(NnSkillPolicy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> torch.BoolTensor:
         # Is the agent holding the object and is the end-effector at the
         # resting position?
@@ -26,7 +27,9 @@ class PickSkillPolicy(NnSkillPolicy):
 
     def _parse_skill_arg(self, skill_arg):
         self._internal_log(f"Parsing skill argument {skill_arg}")
-        return int(skill_arg[0].split("|")[1])
+        if skill_arg is not None:
+            return int(skill_arg[0].split("|")[1])
+        return skill_arg
 
     def _mask_pick(self, action, observations):
         # Mask out the release if the object is already held.

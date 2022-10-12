@@ -54,7 +54,9 @@ class SkillPolicy(Policy):
         Used when there are multiple possible goals in the scene, such as
         multiple objects to possibly rearrange.
         """
-        return self._cur_skill_args[batch_idx]
+        if self._cur_skill_args[batch_idx] is not None:
+            return self._cur_skill_args[batch_idx]
+        return 0
 
     def _keep_holding_state(
         self, full_action: torch.Tensor, observations
@@ -77,24 +79,31 @@ class SkillPolicy(Policy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> Tuple[torch.BoolTensor, torch.BoolTensor]:
         """
         :returns: A (batch_size,) size tensor where 1 indicates the skill wants to end and 0 if not.
         """
         is_skill_done = self._is_skill_done(
-            observations, rnn_hidden_states, prev_actions, masks
+            observations, rnn_hidden_states, prev_actions, masks, batch_idx,
         )  # 1表示skill完成,0则未完成
         if is_skill_done.sum() > 0:  # False
             self._internal_log(
                 f"Requested skill termination {is_skill_done}",
                 observations,
             )
-
-        bad_terminate = torch.zeros(
-            self._cur_skill_step.shape,
-            device=self._cur_skill_step.device,
-            dtype=torch.bool,
-        )  # 1代表因此超时而导致skill结束
+        if batch_idx is None:
+            bad_terminate = torch.zeros(
+                self._cur_skill_step.shape,
+                device=self._cur_skill_step.device,
+                dtype=torch.bool,
+            )  # 1代表因此超时而导致skill结束
+        else:
+            bad_terminate = torch.zeros(
+                self._cur_skill_step[[batch_idx]].shape,
+                device=self._cur_skill_step.device,
+                dtype=torch.bool,
+            ) 
         if self._config.MAX_SKILL_STEPS > 0:  # True
             over_max_len = self._cur_skill_step > self._config.MAX_SKILL_STEPS
             if self._config.FORCE_END_ON_TIMEOUT:  # nav、wait、reserArm为False,其余为True
@@ -112,7 +121,7 @@ class SkillPolicy(Policy):
 
     def on_enter(
         self,
-        skill_arg: List[str],
+        skill_arg: List[str],  # None
         batch_idx: int,
         observations,
         rnn_hidden_states,
@@ -129,10 +138,12 @@ class SkillPolicy(Policy):
             f"Entering skill with arguments {skill_arg} parsed to {self._cur_skill_args[batch_idx]}",
             observations,
         )
-
+        
+        # prev_actions[batch_idx] = prev_actions[batch_idx] * 0.0 
+        # tmp_actions = prev_actions[batch_idx].clone().long()
         return (
             rnn_hidden_states[batch_idx] * 0.0,
-            prev_actions[batch_idx] * 0.0,
+            prev_actions[batch_idx] * 0.0, 
         )
 
     @classmethod
@@ -178,6 +189,8 @@ class SkillPolicy(Policy):
             cur_multi_sensor_index = self._get_multi_sensor_index(
                 cur_batch_idx, k
             )  # 0
+            if cur_multi_sensor_index is None:
+                cur_multi_sensor_index = 0
             if k not in obs:
                 raise ValueError(
                     f"Skill {self._config.skill_name}: Could not find {k} out of {obs.keys()}"
@@ -194,6 +207,7 @@ class SkillPolicy(Policy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> torch.BoolTensor:
         """
         :returns: A (batch_size,) size tensor where 1 indicates the skill wants to end and 0 if not.

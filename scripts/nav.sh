@@ -2,9 +2,10 @@
 #SBATCH --job-name=ddppo_nav
 #SBATCH --output=ddppo_nav.out
 #SBATCH --error=ddppo_nav.err
-#SBATCH --gres=gpu:v100:1
+#SBATCH --gres=gpu:v100:4
 #SBATCH --cpus-per-task 10
 #SBATCH --nodes 1
+
 #SBATCH --mem=120GB
 #SBATCH --time=96:30:00
 #SBATCH --constraint=[gpu]

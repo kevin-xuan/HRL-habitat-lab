@@ -258,7 +258,7 @@ def get_config(
         for k, v in zip(opts[0::2], opts[1::2]):
             if k == "BASE_TASK_CONFIG_PATH":
                 config.BASE_TASK_CONFIG_PATH = v
-    # config.BASE_TASK_CONFIG_PATH = "../habitat-challenge/configs/tasks/rearrange_easy.local.rgbd.yaml"  # TODO新加的 habital-lab使用而challenge不用
+    config.BASE_TASK_CONFIG_PATH = "../habitat-challenge/configs/tasks/rearrange.local.rgbd.yaml"  # TODO新加的 habital-lab使用而challenge不用
     config.TASK_CONFIG = get_task_config(config.BASE_TASK_CONFIG_PATH)
 
     # In case the config specifies overrides for the TASK_CONFIG, we
@@ -280,16 +280,16 @@ def get_config(
 
         config.NUM_ENVIRONMENTS = config.NUM_PROCESSES
     # TODO 新加的 在habitat-lab下使用,在habitat-challenge下不用
-    # config.defrost()
-    # config.BASE_TASK_CONFIG_PATH = "../habitat-challenge/configs/tasks/rearrange_easy.local.rgbd.yaml" 
+    config.defrost()
+    config.BASE_TASK_CONFIG_PATH = "../habitat-challenge/configs/tasks/rearrange.local.rgbd.yaml" 
     # config.TASK_CONFIG.DATASET.DATA_PATH = "../habitat-challenge/data/datasets/replica_cad/rearrange/v1/{split}/rearrange_easy.json.gz"
     # config.TASK_CONFIG.DATASET.SCENES_DIR = "../habitat-challenge/data/replica_cad/"
     # config.EVAL.SPLIT = 'val'  # minival val
-    # config.TASK_CONFIG.DATASET.SPLIT = 'train'
-    # config.TASK_CONFIG.TASK.TASK_SPEC_BASE_PATH = "../habitat-challenge/configs/pddl/"
-    # config.TASK_CONFIG.SIMULATOR.DEBUG_RENDER = True
-    # config.TENSORBOARD_DIR = './pick_tb/'
-    # config.CHECKPOINT_FOLDER = './pick_checkpoints/' 
-    # config.LOG_FILE = './pick_train.log'
-    # config.freeze()
+    config.TASK_CONFIG.DATASET.SPLIT = 'train'
+    config.TASK_CONFIG.TASK.TASK_SPEC_BASE_PATH = "../habitat-challenge/configs/pddl/"
+    config.TASK_CONFIG.SIMULATOR.DEBUG_RENDER = True
+    config.TENSORBOARD_DIR = './hierarchical_tb/'
+    config.CHECKPOINT_FOLDER = './hierarchical_checkpoints/' 
+    config.LOG_FILE = './hierarchical_train.log'
+    config.freeze()
     return config

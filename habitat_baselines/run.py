@@ -29,7 +29,7 @@ def main():
         "--exp-config",
         type=str,
         # required=True,
-        default='habitat_baselines/config/rearrange/ddppo_pick.yaml',
+        default='../habitat-challenge/configs/methods/tp_srl.yaml',  # habitat_baselines/config/rearrange/ddppo_open_cab.yaml
         help="path to config yaml containing info about experiment",
     )
     parser.add_argument(

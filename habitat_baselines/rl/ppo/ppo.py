@@ -49,7 +49,8 @@ class PPO(nn.Module):
         self.use_clipped_value_loss = use_clipped_value_loss
 
         self.optimizer = optim.Adam(
-            list(filter(lambda p: p.requires_grad, actor_critic.parameters())),
+            # list(filter(lambda p: p.requires_grad, actor_critic.parameters())),  # * 只训练high-level policy
+            list(filter(lambda p: p.requires_grad, actor_critic._high_level_policy.parameters())),
             lr=lr,
             eps=eps,
         )
@@ -158,7 +159,7 @@ class PPO(nn.Module):
         r"""Internal method that calls Policy.evaluate_actions.  This is used instead of calling
         that directly so that that call can be overrided with inheritance
         """
-        return self.actor_critic.evaluate_actions(
+        return self.actor_critic._high_level_policy.evaluate_actions(
             observations, rnn_hidden_states, prev_actions, masks, action
         )
 

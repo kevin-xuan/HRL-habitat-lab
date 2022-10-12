@@ -86,8 +86,15 @@ class BaseTrainer:
             if torch.cuda.is_available()
             else torch.device("cpu")
         )
-
-        if "tensorboard" in self.config.VIDEO_OPTION:  # ['disk']
+        # # TODO 新加的，用于eval subskills
+        # self.config.defrost()
+        # self.config.EVAL_CKPT_PATH_DIR = './open_cab_checkpoints'
+        # self.config.LOG_FILE = 'open_cab_eval.log'
+        # self.config.NUM_ENVIRONMENTS = 1
+        # self.config.VIDEO_OPTION = []
+        # # self.config.TEST_EPISODE_COUNT = 100
+        # self.config.freeze()
+        if "tensorboard" in self.config.VIDEO_OPTION:  # ['disk'] False
             assert (
                 len(self.config.TENSORBOARD_DIR) > 0
             ), "Must specify a tensorboard directory for video display"
@@ -98,11 +105,6 @@ class BaseTrainer:
             ), "Must specify a directory for storing videos on disk"
 
         with get_writer(self.config, flush_secs=self.flush_secs) as writer:
-            # # TODO 新加的，用于eval subskills
-            # self.config.defrost()
-            # self.config.EVAL_CKPT_PATH_DIR = 'data/models/pick.pth'
-            # self.config.EVAL.SHOULD_LOAD_CKPT = False
-            # self.config.freeze()
             if (
                 
                 os.path.isfile(self.config.EVAL_CKPT_PATH_DIR)

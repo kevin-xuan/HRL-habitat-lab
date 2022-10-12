@@ -16,7 +16,9 @@ class PlaceSkillPolicy(PickSkillPolicy):
         targ: int
 
     def _get_multi_sensor_index(self, batch_idx: int, sensor_name: str) -> int:
-        return self._cur_skill_args[batch_idx].targ
+        if self._cur_skill_args[batch_idx] is not None:
+            return self._cur_skill_args[batch_idx].targ
+        return 0
 
     def _mask_pick(self, action, observations):
         # Mask out the grasp if the object is already released.
@@ -32,6 +34,7 @@ class PlaceSkillPolicy(PickSkillPolicy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> torch.BoolTensor:
         # Is the agent not holding an object and is the end-effector at the
         # resting position?
@@ -51,6 +54,8 @@ class PlaceSkillPolicy(PickSkillPolicy):
         return is_done
 
     def _parse_skill_arg(self, skill_arg):
-        obj = int(skill_arg[0].split("|")[1])
-        targ = int(skill_arg[1].split("|")[1])
-        return PlaceSkillPolicy.PlaceSkillArgs(obj=obj, targ=targ)
+        if skill_arg is not None:
+            obj = int(skill_arg[0].split("|")[1])
+            targ = int(skill_arg[1].split("|")[1])
+            return PlaceSkillPolicy.PlaceSkillArgs(obj=obj, targ=targ)
+        return skill_arg

@@ -90,6 +90,19 @@ tb
 tb_rearrange_easy
 video_dir
 video_dir_rearrange_easy
+hierarchical_checkpoints
+hierarchical_tb
+kaust_nav_clip_tb
+kaust_nav_r3m_tb
+kaust_nav_vip_tb
+kaust_pick_clip_tb
+kaust_pick_r3m_tb
+kaust_pick_vip_tb
+kaust_place_clip_tb
+kaust_place_r3m_tb
+nav_to_obj_tb
+visual_encoder
+
 
 
 

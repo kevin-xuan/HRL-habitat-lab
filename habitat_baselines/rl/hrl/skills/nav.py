@@ -6,6 +6,7 @@ import torch
 from habitat.tasks.rearrange.rearrange_sensors import (
     TargetGoalGpsCompassSensor,
     TargetStartGpsCompassSensor,
+    IsHoldingSensor,
 )
 from habitat.tasks.rearrange.sub_tasks.nav_to_obj_sensors import (
     TargetOrGoalStartPointGoalSensor,
@@ -43,17 +44,26 @@ class NavSkillPolicy(NnSkillPolicy):
         ret_obs = super()._get_filtered_obs(observations, cur_batch_idx)
 
         if TargetOrGoalStartPointGoalSensor.cls_uuid in ret_obs:
-            if self._cur_skill_args[cur_batch_idx].is_target:
-                replace_sensor = TargetGoalGpsCompassSensor.cls_uuid
+            if self._cur_skill_args[cur_batch_idx] is not None:
+                if self._cur_skill_args[cur_batch_idx].is_target:
+                    replace_sensor = TargetGoalGpsCompassSensor.cls_uuid
+                else:
+                    replace_sensor = TargetStartGpsCompassSensor.cls_uuid
             else:
-                replace_sensor = TargetStartGpsCompassSensor.cls_uuid
+                if observations[IsHoldingSensor.cls_uuid].sum() > 0:
+                    replace_sensor = TargetGoalGpsCompassSensor.cls_uuid
+                else:
+                    replace_sensor = TargetStartGpsCompassSensor.cls_uuid
+                    
             ret_obs[TargetOrGoalStartPointGoalSensor.cls_uuid] = observations[
                 replace_sensor
             ]
         return ret_obs  # 判断nav到物体初始位置,即pick,还是说nav到物体目的位置,即place
 
     def _get_multi_sensor_index(self, batch_idx: int, sensor_name: str) -> int:
-        return self._cur_skill_args[batch_idx].obj_idx
+        if self._cur_skill_args[batch_idx] is not None:
+            return self._cur_skill_args[batch_idx].obj_idx
+        return 0
 
     def _is_skill_done(
         self,
@@ -61,6 +71,7 @@ class NavSkillPolicy(NnSkillPolicy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> torch.BoolTensor:
         filtered_prev_actions = prev_actions[
             :, self._ac_start : self._ac_start + self._ac_len
@@ -77,7 +88,9 @@ class NavSkillPolicy(NnSkillPolicy):
         return should_stop
 
     def _parse_skill_arg(self, skill_arg):
-        targ_name, targ_idx = skill_arg[-2].split("|")  # goal0 0
-        return NavSkillPolicy.NavArgs(
-            obj_idx=int(targ_idx), is_target=targ_name.startswith("TARGET")
-        )
+        if skill_arg is not None: 
+            targ_name, targ_idx = skill_arg[-2].split("|")  # goal0 0
+            return NavSkillPolicy.NavArgs(
+                obj_idx=int(targ_idx), is_target=targ_name.startswith("TARGET")
+            )
+        return skill_arg

@@ -53,7 +53,7 @@ from habitat_baselines.rl.ddppo.policy import (  # noqa: F401.
     PointNavResNetPolicy,
 )
 from habitat_baselines.rl.hrl.hierarchical_policy import (  # noqa: F401.
-    HierarchicalPolicy,
+    HierarchicalPolicy
 )
 from habitat_baselines.rl.ppo import PPO
 from habitat_baselines.rl.ppo.policy import NetPolicy
@@ -94,8 +94,8 @@ class PPOTrainer(BaseRLTrainer):
 
         # Distributed if the world size would be
         # greater than 1
-        # self._is_distributed = get_distrib_size()[2] > 1
-        self._is_distributed = False
+        self._is_distributed = get_distrib_size()[2] > 1
+        # self._is_distributed = False
         self._obs_batching_cache = ObservationBatchingCache()
 
     @property
@@ -133,7 +133,7 @@ class PPOTrainer(BaseRLTrainer):
         """
         logger.add_filehandler(self.config.LOG_FILE)
 
-        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)  # PointNavResNetPolicy
+        policy = baseline_registry.get_policy(self.config.RL.POLICY.name)  # PointNavResNetPolicy or HierarchicalPolicy
         observation_space = self.obs_space  # space.Dict 包括是否抓取物体 机器人关节 目的地的GPS 目的地感知sensor 起始GPS 起始sensor 相对重置位置 D摄像头 
         self.obs_transforms = get_active_obs_transforms(self.config)
         observation_space = apply_obs_transforms_obs_space(  # 在obs_space上应用img transform
@@ -145,6 +145,8 @@ class PPOTrainer(BaseRLTrainer):
             observation_space,
             self.policy_action_space,
             orig_action_space=self.orig_policy_action_space,
+            device=self.device,
+            envs=self.envs,
         )  # 初始化CNN和RNN主体,而super().__init__初始化action和value head
         self.obs_space = observation_space  # space.Dict
         self.actor_critic.to(self.device)
@@ -180,8 +182,10 @@ class PPOTrainer(BaseRLTrainer):
                 param.requires_grad_(False)
 
         if self.config.RL.DDPPO.reset_critic:  # True
-            nn.init.orthogonal_(self.actor_critic.critic.fc.weight)
-            nn.init.constant_(self.actor_critic.critic.fc.bias, 0)
+            # nn.init.orthogonal_(self.actor_critic.critic.fc.weight)
+            # nn.init.constant_(self.actor_critic.critic.fc.bias, 0)
+            nn.init.orthogonal_(self.actor_critic._high_level_policy.critic.fc.weight)  # * Hierarchical
+            nn.init.constant_(self.actor_critic._high_level_policy.critic.fc.bias, 0)
 
         self.agent = (DDPPO if self._is_distributed else PPO)(
             actor_critic=self.actor_critic,
@@ -257,14 +261,16 @@ class PPOTrainer(BaseRLTrainer):
         action_space = self.envs.action_spaces[0]  # spaces.Box (11, ) Arm (7维, [-1, 1]) + Grasp(1维) + Base(2维) + Stop(1维) 
         self.policy_action_space = action_space
         self.orig_policy_action_space = self.envs.orig_action_spaces[0]  # Dict形式
-        if is_continuous_action_space(action_space):  
-            # Assume ALL actions are NOT discrete
-            action_shape = (get_num_actions(action_space),)  # (11, )
-            discrete_actions = False
-        else:
-            # For discrete pointnav
-            action_shape = (1,)
-            discrete_actions = True
+        # if is_continuous_action_space(action_space):  # * 这里可能需要修改一下,因为只需要训练high-level controller
+        #     # Assume ALL actions are NOT discrete
+        #     action_shape = (get_num_actions(action_space),)  # (11, )
+        #     discrete_actions = False
+        # else:
+        #     # For discrete pointnav
+        #     action_shape = (1,)
+        #     discrete_actions = True
+        action_shape = (1,)
+        discrete_actions = True
 
         ppo_cfg = self.config.RL.PPO
         if torch.cuda.is_available():
@@ -282,7 +288,7 @@ class PPOTrainer(BaseRLTrainer):
 
         logger.info(
             "agent number of parameters: {}".format(
-                sum(param.numel() for param in self.agent.parameters())  # 获取参数的数量
+                sum(param.numel() for param in self.agent.actor_critic.parameters())  # * actor_critic获取参数的数量
             )
         )
 
@@ -309,7 +315,7 @@ class PPOTrainer(BaseRLTrainer):
             obs_space,  # space.Dict
             self.policy_action_space,  # space.Dict (11, )
             ppo_cfg.hidden_size,  # 512
-            num_recurrent_layers=self.actor_critic.net.num_recurrent_layers,  # 4
+            num_recurrent_layers=self.actor_critic._high_level_policy.net.num_recurrent_layers,  # 4
             is_double_buffered=ppo_cfg.use_double_buffered_sampler,  # False
             action_shape=action_shape,  # (11, )
             discrete_actions=discrete_actions,  # False
@@ -437,10 +443,14 @@ class PPOTrainer(BaseRLTrainer):
 
             profiling_wrapper.range_push("compute actions")
             (
+                observations,
+                low_not_done_masks,
+                low_rewards,
                 values,
                 actions,
                 actions_log_probs,
                 recurrent_hidden_states,
+                low_infos,
             ) = self.actor_critic.act(
                 step_batch["observations"],  # TensorDict
                 step_batch["recurrent_hidden_states"],  # tensor
@@ -452,33 +462,90 @@ class PPOTrainer(BaseRLTrainer):
 
         profiling_wrapper.range_pop()  # compute actions
 
-        t_step_env = time.time()
+        # t_step_env = time.time()  # * 不支持离散actions的step
 
-        for index_env, act in zip(
-            range(env_slice.start, env_slice.stop), actions.unbind(0)  # 沿着第0维将action分成每个env的action所组成的tuple
-        ):
-            if is_continuous_action_space(self.policy_action_space):  # True
-                # Clipping actions to the specified limits [-1, 1]
-                act = np.clip(
-                    act.detach().cpu().numpy(),
-                    self.policy_action_space.low,
-                    self.policy_action_space.high,
+        # for index_env, act in zip(
+        #     range(env_slice.start, env_slice.stop), actions.unbind(0)  # 沿着第0维将action分成每个env的action所组成的tuple
+        # ):
+        #     act = act.cpu().item()
+        #     self.envs.async_step_at(index_env, act)
+
+        # outputs = [
+        #     self.envs.wait_step_at(index_env)
+        #     for index_env in range(env_slice.start, env_slice.stop)
+        # ]
+
+        # observations, rewards_l, dones, infos = [
+        #     list(x) for x in zip(*outputs)
+        # ]
+
+        # self.env_time += time.time() - t_step_env
+
+        # rewards = torch.tensor(
+        #     rewards_l,
+        #     dtype=torch.float,
+        #     device=self.current_episode_reward.device,
+        # )
+        # not_done_masks = torch.tensor(
+        #     [[not done] for done in dones],
+        #     dtype=torch.bool,
+        #     device=self.current_episode_reward.device,
+        # )  # (32, 1)
+        # done_masks = torch.logical_not(not_done_masks)  # 逻辑非运算, 表示env有没有结束
+        
+        # * high level的reward就是low level的reward之和
+        not_done_masks = low_not_done_masks.to(self.current_episode_reward.device)
+        done_masks = torch.logical_not(not_done_masks)  # 逻辑非运算, 表示env有没有结束
+        self.current_episode_reward[env_slice] += low_rewards.to(self.current_episode_reward.device)
+        
+        # rewards = rewards + low_rewards.to(self.current_episode_reward.device)
+        # self.current_episode_reward[env_slice] += rewards
+        current_ep_reward = self.current_episode_reward[env_slice]  # (32, 1)
+        # 当完成episode时才加上current_ep_reward, 否则加0;且当完成episodes时count+1
+        self.running_episode_stats["reward"][env_slice] += current_ep_reward.where(done_masks, current_ep_reward.new_zeros(()))  # type: ignore
+        self.running_episode_stats["count"][env_slice] += done_masks.float()  # type: ignore
+        for k, v_k in self._extract_scalars_from_infos(low_infos).items():  # 属于同一info_type的value在一起
+            v = torch.tensor(
+                v_k,
+                dtype=torch.float,
+                device=self.current_episode_reward.device,
+            ).unsqueeze(1)
+            if k not in self.running_episode_stats:  # True
+                self.running_episode_stats[k] = torch.zeros_like(
+                    self.running_episode_stats["count"]
                 )
-            else:
-                act = act.cpu().item()
-            self.envs.async_step_at(index_env, act)
+            self.running_episode_stats[k][env_slice] += v.where(done_masks, v.new_zeros(()))  # type: ignore
 
-        self.env_time += time.time() - t_step_env
+        self.current_episode_reward[env_slice].masked_fill_(done_masks, 0.0)  # 完成episodes时重置reward
+
+        if self._static_encoder:  # False
+            with torch.no_grad():
+                batch["visual_features"] = self._encoder(batch)
+
+        self.pth_time += time.time() - self.pth_time
+
+        batch = batch_obs(
+            observations, device=self.device, cache=self._obs_batching_cache
+        )
+        # batch = apply_obs_transforms_batch(batch, self.obs_transforms)  # type: ignore
+        observations = batch
+        # observations['is_holding'] = observations['is_holding'].unsqueeze(1)  # * 这里为什么shape不对还不清楚?
 
         self.rollouts.insert(
-            next_recurrent_hidden_states=recurrent_hidden_states,
-            actions=actions,  # 算是prev_action
-            action_log_probs=actions_log_probs,
-            value_preds=values,
+            next_observations=observations,
+            next_recurrent_hidden_states=recurrent_hidden_states.squeeze(1),
+            actions=actions.squeeze(1),  # 算是prev_action
+            action_log_probs=actions_log_probs.squeeze(1),
+            value_preds=values.squeeze(1),
+            rewards=low_rewards,
+            next_masks=low_not_done_masks,
             buffer_index=buffer_index,
         )
+        self.rollouts.advance_rollout(buffer_index)
 
-    def _collect_environment_result(self, buffer_index: int = 0):
+        return env_slice.stop - env_slice.start
+
+    def _collect_environment_result(self, buffer_index: int = 0, low_rewards=None):
         num_envs = self.envs.num_envs  # 32 - num_paused
         env_slice = slice(
             int(buffer_index * num_envs / self._nbuffers),
@@ -509,6 +576,8 @@ class PPOTrainer(BaseRLTrainer):
             device=self.current_episode_reward.device,
         )
         rewards = rewards.unsqueeze(1)  # (32, 1)
+        if low_rewards is not None:
+            rewards = rewards + low_rewards
 
         not_done_masks = torch.tensor(
             [[not done] for done in dones],
@@ -567,7 +636,7 @@ class PPOTrainer(BaseRLTrainer):
                 self.rollouts.current_rollout_step_idx
             ]
 
-            next_value = self.actor_critic.get_value(
+            next_value = self.actor_critic._high_level_policy.get_value(
                 step_batch["observations"],
                 step_batch["recurrent_hidden_states"],
                 step_batch["prev_actions"],
@@ -801,7 +870,8 @@ class PPOTrainer(BaseRLTrainer):
 
                 profiling_wrapper.range_push("_collect_rollout_step")
                 for buffer_index in range(self._nbuffers):  # 1 
-                    self._compute_actions_and_step_envs(buffer_index)  # 一步rollout计算action和hidden_state,且将输出(value, reward...)保存起来
+                    count_steps_delta += self._compute_actions_and_step_envs(buffer_index)  # 一步rollout计算action和hidden_state,且将输出(value, reward...)保存起来
+                    
 
                 for step in range(ppo_cfg.num_steps):  # 128 lstm 每个step都会执行一个transition
                     is_last_step = (
@@ -810,9 +880,9 @@ class PPOTrainer(BaseRLTrainer):
                     )
 
                     for buffer_index in range(self._nbuffers):  # 1
-                        count_steps_delta += self._collect_environment_result(
-                            buffer_index
-                        )  # 搜集前一个step的结果
+                        # count_steps_delta += self._collect_environment_result(
+                        #     buffer_index, low_rewards=low_rewards
+                        # )  # 搜集前一个step的结果
 
                         if (buffer_index + 1) == self._nbuffers:
                             profiling_wrapper.range_pop()  # _collect_rollout_step
@@ -823,7 +893,7 @@ class PPOTrainer(BaseRLTrainer):
                                     "_collect_rollout_step"
                                 )
 
-                            self._compute_actions_and_step_envs(buffer_index)  # 执行下一步rollout
+                            count_steps_delta += self._compute_actions_and_step_envs(buffer_index)  # 执行下一步rollout
 
                     if is_last_step:
                         break
@@ -895,7 +965,7 @@ class PPOTrainer(BaseRLTrainer):
         # self.config.EVAL.USE_CKPT_CONFIG = False  # 为True则加载train的config
         # self.config.NUM_ENVIRONMENTS = 1
         # self.config.freeze()
-        if self.config.EVAL.SHOULD_LOAD_CKPT:  # False
+        if self.config.EVAL.SHOULD_LOAD_CKPT:  # True
             ckpt_dict = self.load_checkpoint(
                 checkpoint_path, map_location="cpu"
             )
@@ -907,6 +977,15 @@ class PPOTrainer(BaseRLTrainer):
         else:
             config = self.config.clone()
 
+        # # TODO 新加的，用于eval subskills
+        # self.config.defrost()
+        # self.config.EVAL_CKPT_PATH_DIR = './open_cab_checkpoints'
+        # self.config.LOG_FILE = 'open_cab_eval.log'
+        # self.config.NUM_ENVIRONMENTS = 1
+        # self.config.VIDEO_OPTION = []
+        # self.config.TEST_EPISODE_COUNT = 100
+        # self.config.freeze()
+        
         ppo_cfg = config.RL.PPO
 
         config.defrost()
@@ -951,18 +1030,12 @@ class PPOTrainer(BaseRLTrainer):
             discrete_actions = True
 
         self._setup_actor_critic_agent(ppo_cfg)
+        # logger.info(f"=======current_ckpt: {checkpoint_path}=======")
 
         if self.agent.actor_critic.should_load_agent_state:  # TODO Hierarchical为False PointNavPolicy为True 这里为验证subskill我注释掉了
             self.agent.load_state_dict(ckpt_dict["state_dict"])
         self.actor_critic = self.agent.actor_critic
-        # # TODO 新加的,用于验证subskills
-        # if len(ckpt_dict) > 0:  # 在这里加载预训练模型
-        #     self.actor_critic.load_state_dict(
-        #             {  # type: ignore
-        #                 k[len("actor_critic.") :]: v
-        #                 for k, v in ckpt_dict["state_dict"].items()
-        #             }
-        #         )
+        
         observations = self.envs.reset()
         batch = batch_obs(
             observations, device=self.device, cache=self._obs_batching_cache

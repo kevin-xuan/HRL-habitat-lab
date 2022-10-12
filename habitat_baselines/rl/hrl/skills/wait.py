@@ -14,11 +14,14 @@ class WaitSkillPolicy(SkillPolicy):
         batch_size,
     ):
         super().__init__(config, action_space, batch_size, True)
-        self._wait_time = -1
+        self._wait_time = 30 # -1
 
     def _parse_skill_arg(self, skill_arg: str) -> Any:
-        self._wait_time = int(skill_arg[0])
-        self._internal_log(f"Requested wait time {self._wait_time}")
+        if skill_arg is not None:
+            self._wait_time = int(skill_arg[0])
+            self._internal_log(f"Requested wait time {self._wait_time}")
+        self._wait_time = 30
+        return skill_arg
 
     def _is_skill_done(
         self,
@@ -26,9 +29,10 @@ class WaitSkillPolicy(SkillPolicy):
         rnn_hidden_states,
         prev_actions,
         masks,
+        batch_idx=None,
     ) -> torch.BoolTensor:
         assert self._wait_time > 0
-        return self._cur_skill_step >= self._wait_time
+        return self._cur_skill_step[batch_idx] >= self._wait_time
 
     def _internal_act(
         self,
