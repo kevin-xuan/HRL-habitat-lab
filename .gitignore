@@ -102,6 +102,7 @@ kaust_place_clip_tb
 kaust_place_r3m_tb
 nav_to_obj_tb
 visual_encoder
+r3m_nav_dist_tb
 
 
 
