@@ -10,6 +10,8 @@
 #SBATCH --time=168:30:00
 #SBATCH --constraint=[gpu]
 ##SBATCH --partition=batch
+#SBATCH --partition=batch
+
 export MAGNUM_LOG=quiet
 export HABITAT_SIM_LOG=quiet
 
