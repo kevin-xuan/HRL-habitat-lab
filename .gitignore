@@ -103,6 +103,11 @@ kaust_place_r3m_tb
 nav_to_obj_tb
 visual_encoder
 r3m_nav_dist_tb
+new_nav_distri_checkpoints
+new_nav_distri_tb
+new_pick_distri_r3m_tb
+new_place_distri_r3m_tb
+place_tb
 
 
 
@@ -115,3 +120,4 @@ r3m_nav_dist_tb
 
 # vim
 *.swp
+
